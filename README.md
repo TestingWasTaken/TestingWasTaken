@@ -30,3 +30,15 @@ I enjoy figuring out how things work, building projects from scratch, and expand
 - Git
 - GitHub
 - VS Code
+
+---
+
+## 📚 Currently Learning
+
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=java,cs,react" />
+</p>
+
+- Java
+- C#
+- React
