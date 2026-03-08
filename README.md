@@ -42,3 +42,11 @@ I enjoy figuring out how things work, building projects from scratch, and expand
 - Java
 - C#
 - React
+
+---
+
+## 🚀 Current Direction
+
+Learning by building, experimenting with new technologies, and taking on projects that challenge me to improve.
+
+`Learn → Build → Improve → Repeat`
