@@ -20,16 +20,16 @@ I enjoy figuring out how things work, building projects from scratch, and expand
 
 **Languages**
 
-- Python
-- JavaScript
-- HTML
-- CSS
+* Python
+* JavaScript
+* HTML
+* CSS
 
 **Tools & Technologies**
 
-- Git
-- GitHub
-- VS Code
+* Git
+* GitHub
+* VS Code
 
 ---
 
@@ -39,9 +39,9 @@ I enjoy figuring out how things work, building projects from scratch, and expand
   <img src="https://skillicons.dev/icons?i=java,cs,react" />
 </p>
 
-- Java
-- C#
-- React
+* Java
+* C#
+* React
 
 ---
 
@@ -49,4 +49,14 @@ I enjoy figuring out how things work, building projects from scratch, and expand
 
 Learning by building, experimenting with new technologies, and taking on projects that challenge me to improve.
 
-`Learn → Build → Improve → Repeat`
+```text
+Learn → Build → Improve → Repeat
+```
+
+---
+
+<div align="center">
+
+### Small progress every day compounds into something bigger.
+
+</div>
