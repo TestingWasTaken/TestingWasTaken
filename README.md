@@ -15,7 +15,7 @@ I enjoy figuring out how things work, building projects from scratch, and expand
 ## 💻 Languages & Experience
 
 <p align="center">
-  <img src="https://skillicons.dev/icons?i=python,html,css,js,git,github,vscode" />
+  <img src="https://skillicons.dev/icons?i=python,html,css,js,git,github,vscode,electron" />
 </p>
 
 **Languages**
@@ -30,10 +30,11 @@ I enjoy figuring out how things work, building projects from scratch, and expand
 * Git
 * GitHub
 * VS Code
+* Electron
 
 ---
 
-## 📚 Currently Learning
+## 📚 Knowledge & Currently Learning
 
 <p align="center">
   <img src="https://skillicons.dev/icons?i=java,cs,react" />
