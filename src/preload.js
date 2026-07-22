@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('relay', {
   setNetwork: (value) => ipcRenderer.invoke('set-network', value),
   checkIPs: () => ipcRenderer.invoke('check-ips'),
   setSync: (enabled) => ipcRenderer.invoke('set-sync', enabled),
+  clearConsole: () => ipcRenderer.invoke('clear-console'),
   onState: (callback) => ipcRenderer.on('browser-state', (_event, state) => callback(state)),
   onLayout: (callback) => ipcRenderer.on('layout-state', (_event, state) => callback(state)),
+  onLog: (callback) => ipcRenderer.on('activity-log', (_event, entry) => callback(entry)),
+  onLogsReset: (callback) => ipcRenderer.on('activity-log-reset', (_event, entries) => callback(entries)),
 });
