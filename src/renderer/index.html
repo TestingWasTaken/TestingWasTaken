@@ -7,31 +7,93 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="toolbar">
-    <button id="back" title="Back">←</button>
-    <button id="forward" title="Forward">→</button>
-    <button id="reload" title="Reload">↻</button>
-    <form id="address-form">
-      <input id="address" value="relay://welcome" autocomplete="off" spellcheck="false" aria-label="Address or search" />
-    </form>
-    <label>Screens
-      <select id="screen-count">
-        <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option>
-      </select>
-    </label>
-    <label>Zoom
-      <select id="zoom">
-        <option value="0.5">50%</option><option value="0.67">67%</option><option value="0.8">80%</option><option value="0.9">90%</option><option value="1" selected>100%</option><option value="1.1">110%</option><option value="1.25">125%</option><option value="1.5">150%</option>
-      </select>
-    </label>
-    <label>Network
-      <select id="network"><option value="direct">Direct</option><option value="tor">Tor split</option></select>
-    </label>
-    <button id="check-ips" class="wide" title="Check each screen's public IP and Tor DNS path">Check IPs</button>
-    <label class="check"><input id="sync" type="checkbox" /> Sync activity</label>
-    <span id="status">Sync off</span>
-  </header>
-  <div id="labels"></div>
+  <main class="workspace-ui">
+    <header class="toolbar">
+      <div class="nav-row">
+        <div class="nav-buttons">
+          <button id="back" title="Back">←</button>
+          <button id="forward" title="Forward">→</button>
+          <button id="reload" title="Reload">↻</button>
+        </div>
+        <form id="address-form">
+          <input id="address" value="relay://welcome" autocomplete="off" spellcheck="false" aria-label="Address or search" />
+        </form>
+      </div>
+      <div class="status-row">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status">Ready</span>
+      </div>
+    </header>
+    <div id="labels"></div>
+  </main>
+
+  <aside class="side-panel">
+    <section class="panel-section settings-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Relay 0.7</p>
+          <h1>Workspace settings</h1>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+        <label class="field">
+          <span>Screens</span>
+          <select id="screen-count">
+            <option value="1">1 screen</option>
+            <option value="2">2 screens</option>
+            <option value="3">3 screens</option>
+            <option value="4" selected>4 screens</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Shared zoom</span>
+          <select id="zoom">
+            <option value="0.5">50%</option>
+            <option value="0.67">67%</option>
+            <option value="0.8">80%</option>
+            <option value="0.9">90%</option>
+            <option value="1" selected>100%</option>
+            <option value="1.1">110%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+          </select>
+        </label>
+
+        <label class="field full">
+          <span>Network route</span>
+          <select id="network">
+            <option value="direct">Direct</option>
+            <option value="tor">Tor split</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="toggle-row">
+        <input id="sync" type="checkbox" />
+        <span>
+          <strong>Synchronize activity</strong>
+          <small>Mirror safe actions from Screen 1.</small>
+        </span>
+      </label>
+
+      <button id="check-ips" class="primary-button" title="Check each screen's public IP and Tor route">Verify public IPs</button>
+      <p id="dns-status" class="dns-status">Direct connection</p>
+    </section>
+
+    <section class="panel-section console-section">
+      <div class="console-heading">
+        <div>
+          <p class="eyebrow">Live</p>
+          <h2>Activity console</h2>
+        </div>
+        <button id="clear-console" class="text-button">Clear</button>
+      </div>
+      <div id="console" class="console" role="log" aria-live="polite"></div>
+    </section>
+  </aside>
+
   <script src="app.js"></script>
 </body>
 </html>
