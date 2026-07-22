@@ -4,6 +4,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { app, BrowserWindow, WebContentsView, ipcMain, session } = require('electron');
 const {
+  SIDEBAR_WIDTH,
   MAX_SCREENS,
   DEFAULT_URL,
   normalizeURL,
@@ -31,14 +32,17 @@ let networkMode = 'direct';
 let networkBusy = false;
 let syncRequested = false;
 let syncHardLock = '';
-let statusText = 'Sync off';
+let statusText = 'Direct · Sync off';
+let dnsStatus = 'Direct connection';
+let errorState = false;
 let torRuntime = null;
 let bridges = [];
 let ipResults = Array(MAX_SCREENS).fill(null);
-let dnsStatus = 'Direct connection';
 let resizeTimer = null;
 let stateTimer = null;
 let actionSequence = 0;
+let logSequence = 0;
+const activityLogs = [];
 const pageStates = new Map();
 const pendingActions = new Map();
 
@@ -58,6 +62,32 @@ function actualURL(value) {
   return normalized === DEFAULT_URL ? welcomeURL : normalized;
 }
 
+function clockTime() {
+  return new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function logEvent(level, message, detail = '') {
+  const entry = {
+    id: ++logSequence,
+    time: clockTime(),
+    level: ['info', 'warn', 'error', 'action'].includes(level) ? level : 'info',
+    message: String(message || ''),
+    detail: String(detail || ''),
+  };
+  activityLogs.push(entry);
+  while (activityLogs.length > 250) activityLogs.shift();
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('activity-log', entry);
+  return entry;
+}
+
+function statusTextFor(safety) {
+  if (networkBusy) return statusText;
+  if (errorState) return statusText;
+  if (!syncRequested) return networkMode === 'tor' ? 'Tor · Sync off' : 'Direct · Sync off';
+  if (!safety.ready) return `Sync paused · ${safety.reason}`;
+  return statusText || 'Sync ready';
+}
+
 function sendStateNow() {
   stateTimer = null;
   if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -70,9 +100,10 @@ function sendStateNow() {
     networkBusy,
     syncRequested,
     syncReady: syncRequested && !syncHardLock && safety.ready,
-    status: syncHardLock ? `${syncHardLock}. Turn Sync activity off and on after checking the screens.` : statusTextFor(safety),
+    status: syncHardLock ? `${syncHardLock}. Toggle Sync activity after checking the screens.` : statusTextFor(safety),
     ips: ipResults,
     dnsStatus,
+    errorState,
     canGoBack: views[0]?.webContents.canGoBack() || false,
     canGoForward: views[0]?.webContents.canGoForward() || false,
   });
@@ -83,34 +114,24 @@ function scheduleState(delay = 40) {
   stateTimer = setTimeout(sendStateNow, delay);
 }
 
-function statusTextFor(safety) {
-  if (networkBusy) return statusText;
-  if (!syncRequested) return statusText === 'Sync off' ? statusText : `${statusText} — Sync off`;
-  if (!safety.ready) return `Paused: ${safety.reason}`;
-  return statusText && statusText !== 'Sync off' ? statusText : 'Sync ready';
-}
-
 function safetySnapshot() {
   const active = activeViews();
-  if (active.length < 2) return { ready: false, transient: true, reason: 'choose at least two screens' };
+  if (active.length < 2) return { ready: false, reason: 'choose at least two screens' };
   const states = active.map((view) => pageStates.get(view.webContents.id));
-  if (states.some((state) => !state)) return { ready: false, transient: true, reason: 'waiting for page checks' };
-  if (states.some((state) => state.loading)) return { ready: false, transient: true, reason: 'waiting for pages to finish loading' };
+  if (states.some((state) => !state)) return { ready: false, reason: 'waiting for page checks' };
+  if (states.some((state) => state.loading)) return { ready: false, reason: 'waiting for pages to finish loading' };
   const challenged = states.findIndex((state) => state.challenge);
-  if (challenged >= 0) {
-    return { ready: false, transient: false, reason: `security challenge detected on Screen ${challenged + 1}` };
-  }
+  if (challenged >= 0) return { ready: false, reason: `security challenge on Screen ${challenged + 1}` };
   const keys = states.map((state) => pageKey(state.url));
-  if (!keys.every((key) => key === keys[0])) {
-    return { ready: false, transient: true, reason: 'screens are on different pages' };
-  }
-  return { ready: true, transient: false, reason: 'screens match' };
+  if (!keys.every((key) => key === keys[0])) return { ready: false, reason: 'screens are on different pages' };
+  return { ready: true, reason: 'screens match' };
 }
 
 function updateLayout() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const [width, height] = mainWindow.getContentSize();
-  const cells = layoutCells(screenCount, width, height);
+  const workspaceWidth = Math.max(0, width - SIDEBAR_WIDTH);
+  const cells = layoutCells(screenCount, workspaceWidth, height);
   const labels = [];
 
   views.forEach((view, index) => {
@@ -133,7 +154,7 @@ function updateLayout() {
 
 function scheduleLayout() {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(updateLayout, 40);
+  resizeTimer = setTimeout(updateLayout, 45);
 }
 
 function applyZoom() {
@@ -163,6 +184,7 @@ function attachViewEvents(view, index) {
     const existing = pageStates.get(wc.id) || { url: wc.getURL(), challenge: false };
     pageStates.set(wc.id, { ...existing, loading: false });
     wc.send('request-page-state');
+    if (index === 0) logEvent('info', 'Page finished loading', displayURL(wc.getURL()));
     scheduleState(80);
   });
   wc.on('did-navigate', (_event, url) => {
@@ -174,7 +196,9 @@ function attachViewEvents(view, index) {
     scheduleState();
   });
   wc.on('render-process-gone', (_event, details) => {
-    statusText = `Screen ${index + 1} renderer stopped: ${details.reason}`;
+    statusText = `Screen ${index + 1} stopped`;
+    errorState = true;
+    logEvent('error', `Screen ${index + 1} renderer stopped`, details.reason);
     scheduleState();
   });
 }
@@ -207,7 +231,9 @@ async function closeTorStack() {
   const oldBridges = bridges;
   bridges = [];
   await Promise.allSettled(oldBridges.map((bridge) => bridge.close()));
-  if (torRuntime) torRuntime.stop();
+  if (torRuntime) {
+    try { torRuntime.stop(); } catch {}
+  }
   torRuntime = null;
 }
 
@@ -220,8 +246,15 @@ async function setSessionsDirect() {
 }
 
 async function setSessionsTor() {
-  torRuntime = await startTorRuntime(app.getPath('userData'), MAX_SCREENS);
-  bridges = await Promise.all(torRuntime.socksPorts.map((socksPort) => startTorHttpBridge({ socksPort })));
+  torRuntime = await startTorRuntime(app.getPath('userData'), MAX_SCREENS, (entry) => {
+    logEvent(entry.level || 'info', entry.message || 'Tor', entry.detail || '');
+  });
+  const token = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  bridges = await Promise.all(torRuntime.socksPorts.map((socksPort, index) => startTorHttpBridge({
+    socksPort,
+    username: `relay-screen-${index + 1}`,
+    password: `${token}-${index + 1}`,
+  })));
   await Promise.all(sessions.map(async (ses, index) => {
     await ses.setProxy({
       mode: 'fixed_servers',
@@ -231,83 +264,111 @@ async function setSessionsTor() {
     await ses.closeAllConnections();
     await ses.clearHostResolverCache();
   }));
+  logEvent('info', 'Tor routes assigned to all screens', torRuntime.sourceDescription || 'Tor SOCKS routing active');
+}
+
+async function restoreDirectAfterFailure(error) {
+  try { await closeTorStack(); } catch {}
+  try { await setSessionsDirect(); } catch (directError) {
+    logEvent('error', 'Direct-mode recovery also reported an error', directError.message);
+  }
+  networkMode = 'direct';
+  dnsStatus = 'Direct connection · Tor retry available in Settings';
+  statusText = 'Tor failed · Direct mode active';
+  errorState = true;
+  const tail = Array.isArray(error?.torLogs) ? error.torLogs.slice(-12).join('\n') : '';
+  logEvent('error', 'Tor could not connect; Relay stayed open in Direct mode', [error?.message || String(error), tail].filter(Boolean).join('\n'));
 }
 
 async function changeNetwork(mode) {
-  if (networkBusy) return;
+  if (networkBusy) return { ok: false, busy: true, mode: networkMode };
   const requested = mode === 'tor' ? 'tor' : 'direct';
   networkBusy = true;
   syncRequested = false;
   syncHardLock = '';
-  statusText = requested === 'tor' ? 'Starting Tor and remote-DNS bridges…' : 'Switching to direct connection…';
-  dnsStatus = 'Checking network…';
+  errorState = false;
+  statusText = requested === 'tor' ? 'Starting Tor…' : 'Switching to Direct…';
+  dnsStatus = 'Changing network route…';
   ipResults = Array(MAX_SCREENS).fill(null);
+  logEvent('info', requested === 'tor' ? 'Tor split requested' : 'Direct route requested');
   sendStateNow();
 
+  let result;
   try {
     await closeTorStack();
     if (requested === 'tor') {
       await setSessionsTor();
       networkMode = 'tor';
-      dnsStatus = 'Remote DNS through Tor bridge; SafeSocks enabled';
-      statusText = 'Tor connected';
+      dnsStatus = 'Remote DNS through SOCKS5 hostname requests';
+      statusText = 'Tor connected · Sync off';
+      logEvent('info', 'Tor split connected', 'Use Check screen IPs to verify each route.');
     } else {
       await setSessionsDirect();
       networkMode = 'direct';
       dnsStatus = 'Direct connection';
-      statusText = 'Direct connection';
+      statusText = 'Direct · Sync off';
+      logEvent('info', 'Direct connection active');
     }
-    await Promise.all(activeViews().map((view) => view.webContents.reload()));
+    await Promise.allSettled(activeViews().map((view) => view.webContents.reload()));
+    result = { ok: true, mode: networkMode };
   } catch (error) {
-    await closeTorStack();
-    await setSessionsDirect();
-    networkMode = 'direct';
-    dnsStatus = 'Tor setup failed; returned to direct connection';
-    statusText = error.message;
+    await restoreDirectAfterFailure(error);
+    await Promise.allSettled(activeViews().map((view) => view.webContents.reload()));
+    result = { ok: false, mode: 'direct', error: error?.message || String(error) };
   } finally {
     networkBusy = false;
     scheduleState();
   }
+  return result;
 }
 
 async function checkIPs() {
-  if (networkBusy) return;
-  statusText = 'Checking screen IPs and Tor DNS path…';
+  if (networkBusy) return { ok: false, busy: true };
+  statusText = 'Checking screen IPs…';
+  errorState = false;
+  logEvent('info', 'Checking public IP and Tor status for each screen');
   scheduleState();
+
   const results = await Promise.all(activeViews().map(async (_view, index) => {
     const ses = sessions[index];
     try {
       const response = await ses.fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) throw new Error(`IP service returned HTTP ${response.status}`);
       const data = await response.json();
       let isTor = null;
       if (networkMode === 'tor') {
         const torCheck = await ses.fetch('https://check.torproject.org/api/ip', { cache: 'no-store' });
         if (torCheck.ok) isTor = Boolean((await torCheck.json()).IsTor);
       }
-      return { ip: String(data.ip || 'Unknown'), ok: true, isTor };
+      const result = { ip: String(data.ip || 'Unknown'), ok: true, isTor };
+      logEvent(isTor === false && networkMode === 'tor' ? 'warn' : 'info', `Screen ${index + 1} IP: ${result.ip}`, networkMode === 'tor' ? `Tor verified: ${isTor === true ? 'yes' : isTor === false ? 'no' : 'unknown'}` : 'Direct route');
+      return result;
     } catch (error) {
+      logEvent('warn', `Screen ${index + 1} IP check failed`, error.message);
       return { ip: 'Unavailable', ok: false, error: error.message, isTor: false };
     }
   }));
 
   ipResults = Array(MAX_SCREENS).fill(null);
   results.forEach((result, index) => { ipResults[index] = result; });
-  const duplicate = results.some((result, index) => result.ok && results.findIndex((other) => other.ip === result.ip) !== index);
+  const duplicate = results.some((result, index) => result.ok && results.findIndex((other) => other.ok && other.ip === result.ip) !== index);
+
   if (networkMode === 'tor') {
     const unsafe = torRuntime?.getUnsafeDnsAttempts() || 0;
     const allTor = results.every((result) => result.ok && result.isTor === true);
     dnsStatus = unsafe > 0
       ? `Tor blocked ${unsafe} unsafe DNS attempt${unsafe === 1 ? '' : 's'}`
       : allTor
-        ? 'DNS guard passed: hostnames resolved through Tor'
-        : 'Tor check incomplete; see screen results';
-    statusText = duplicate ? 'IPs checked — Tor reused an exit IP on at least two screens' : 'IPs checked';
+        ? 'DNS guard passed · all screens verified through Tor'
+        : 'Tor verification incomplete · inspect the console';
+    statusText = duplicate ? 'IPs checked · Tor reused an exit IP' : 'IPs checked';
+    if (duplicate) logEvent('warn', 'Tor reused an exit IP on multiple screens', 'Separate circuits do not guarantee different exits.');
   } else {
     dnsStatus = 'Direct connection';
     statusText = 'IPs checked';
   }
   scheduleState();
+  return { ok: true, results };
 }
 
 function finalizePending(actionId) {
@@ -315,12 +376,9 @@ function finalizePending(actionId) {
   if (!pending) return;
   pendingActions.delete(actionId);
   const successful = pending.results.filter((result) => result.ok).length;
-  if (successful === pending.expected) {
-    statusText = `Synced ${pending.kind} to ${successful}/${pending.expected}`;
-  } else {
-    const firstFailure = pending.results.find((result) => !result.ok);
-    statusText = `Synced ${pending.kind} to ${successful}/${pending.expected}${firstFailure?.reason ? ` — ${firstFailure.reason}` : ''}`;
-  }
+  const firstFailure = pending.results.find((result) => !result.ok);
+  statusText = `Synced ${pending.kind} to ${successful}/${pending.expected}`;
+  logEvent(successful === pending.expected ? 'action' : 'warn', statusText, firstFailure?.reason || '');
   scheduleState(100);
 }
 
@@ -330,18 +388,18 @@ function queueReplay(action) {
   const actionId = ++actionSequence;
   pendingActions.set(actionId, { kind: action.kind, expected: targets.length, results: [] });
   targets.forEach((view) => view.webContents.send('replay-action', { actionId, action }));
-  setTimeout(() => finalizePending(actionId), 1300);
+  setTimeout(() => finalizePending(actionId), 1400);
 }
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 920,
-    minWidth: 980,
-    minHeight: 600,
+    width: 1500,
+    height: 940,
+    minWidth: 1100,
+    minHeight: 660,
     show: false,
     title: 'Relay',
-    backgroundColor: '#d0d0d0',
+    backgroundColor: '#cfd4d1',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -355,6 +413,7 @@ async function createWindow() {
   for (let index = 0; index < MAX_SCREENS; index += 1) createView(index);
   await setSessionsDirect();
   updateLayout();
+  logEvent('info', 'Relay workspace ready', 'Direct mode active. Settings and live output are available in the right panel.');
   sendStateNow();
 
   mainWindow.on('resize', scheduleLayout);
@@ -370,15 +429,25 @@ ipcMain.handle('navigate', async (_event, value) => {
   const destination = actualURL(value);
   currentURL = destination;
   syncHardLock = '';
+  errorState = false;
   statusText = 'Loading…';
-  await Promise.all(activeViews().map((view) => view.webContents.loadURL(destination)));
+  logEvent('info', 'Navigating all screens', displayURL(destination));
+  await Promise.allSettled(activeViews().map((view) => view.webContents.loadURL(destination)));
   scheduleState();
+  return { ok: true };
 });
-
-ipcMain.handle('go-back', () => activeViews().forEach((view) => view.webContents.canGoBack() && view.webContents.goBack()));
-ipcMain.handle('go-forward', () => activeViews().forEach((view) => view.webContents.canGoForward() && view.webContents.goForward()));
-ipcMain.handle('reload', () => activeViews().forEach((view) => view.webContents.reload()));
-
+ipcMain.handle('go-back', () => {
+  logEvent('action', 'Back on all available screens');
+  activeViews().forEach((view) => view.webContents.canGoBack() && view.webContents.goBack());
+});
+ipcMain.handle('go-forward', () => {
+  logEvent('action', 'Forward on all available screens');
+  activeViews().forEach((view) => view.webContents.canGoForward() && view.webContents.goForward());
+});
+ipcMain.handle('reload', () => {
+  logEvent('action', 'Reloading visible screens');
+  activeViews().forEach((view) => view.webContents.reload());
+});
 ipcMain.handle('set-screen-count', (_event, value) => {
   screenCount = clampScreenCount(value);
   syncHardLock = '';
@@ -386,24 +455,43 @@ ipcMain.handle('set-screen-count', (_event, value) => {
   updateLayout();
   applyZoom();
   requestPageStates();
+  logEvent('info', `Workspace changed to ${screenCount} screen${screenCount === 1 ? '' : 's'}`);
   scheduleState();
+  return { ok: true };
 });
-
 ipcMain.handle('set-zoom', (_event, value) => {
   zoomFactor = clampZoom(value);
   applyZoom();
+  logEvent('info', `Shared zoom set to ${Math.round(zoomFactor * 100)}%`);
   scheduleState();
+  return { ok: true };
 });
-
-ipcMain.handle('set-network', (_event, value) => changeNetwork(value));
+ipcMain.handle('set-network', async (_event, value) => {
+  try {
+    return await changeNetwork(value);
+  } catch (error) {
+    await restoreDirectAfterFailure(error);
+    networkBusy = false;
+    scheduleState();
+    return { ok: false, mode: 'direct', error: error.message };
+  }
+});
 ipcMain.handle('check-ips', checkIPs);
-
+ipcMain.handle('get-logs', () => activityLogs.slice());
+ipcMain.handle('clear-logs', () => {
+  activityLogs.length = 0;
+  logSequence = 0;
+  return { ok: true };
+});
 ipcMain.handle('set-sync', (_event, enabled) => {
   syncRequested = Boolean(enabled);
   syncHardLock = '';
-  statusText = syncRequested ? 'Checking screens…' : 'Sync off';
+  errorState = false;
+  statusText = syncRequested ? 'Checking screens…' : `${networkMode === 'tor' ? 'Tor' : 'Direct'} · Sync off`;
   requestPageStates();
+  logEvent('info', syncRequested ? 'Activity synchronization enabled' : 'Activity synchronization disabled');
   setTimeout(() => scheduleState(), 120);
+  return { ok: true };
 });
 
 ipcMain.on('page-state', (event, state) => {
@@ -411,7 +499,10 @@ ipcMain.on('page-state', (event, state) => {
   if (viewIndex < 0) return;
   const previous = pageStates.get(event.sender.id) || {};
   pageStates.set(event.sender.id, { ...previous, ...state, loading: false, screenNumber: viewIndex + 1 });
-  if (syncRequested && state.challenge) syncHardLock = `Security challenge detected on Screen ${viewIndex + 1}`;
+  if (syncRequested && state.challenge) {
+    syncHardLock = `Security challenge detected on Screen ${viewIndex + 1}`;
+    logEvent('warn', syncHardLock, 'Synchronization was stopped.');
+  }
   scheduleState(80);
 });
 
@@ -420,15 +511,18 @@ ipcMain.on('page-action', (event, action) => {
   if (sourceIndex !== 0 || !syncRequested || syncHardLock) return;
   const safety = safetySnapshot();
   if (!safety.ready) {
-    statusText = `Not synced: ${safety.reason}`;
+    statusText = `Not synced · ${safety.reason}`;
+    logEvent('warn', 'Action was not synchronized', safety.reason);
     scheduleState(100);
     return;
   }
   if (actionLooksSensitive(action)) {
     syncHardLock = 'Sensitive action was not mirrored';
+    logEvent('warn', syncHardLock, action.text || action.ariaLabel || action.kind || 'Blocked action');
     scheduleState();
     return;
   }
+  logEvent('action', `Captured ${action.kind} from Screen 1`, action.selector || action.text || '');
   queueReplay(action);
 });
 
@@ -439,9 +533,14 @@ ipcMain.on('replay-result', (_event, result) => {
   if (pending.results.length >= pending.expected) finalizePending(result.actionId);
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(createWindow).catch((error) => {
+  console.error(error);
+  app.quit();
+});
 app.on('before-quit', () => {
-  if (torRuntime) torRuntime.stop();
+  if (torRuntime) {
+    try { torRuntime.stop(); } catch {}
+  }
 });
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

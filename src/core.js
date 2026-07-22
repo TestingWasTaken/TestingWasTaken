@@ -1,8 +1,9 @@
 'use strict';
 
-const TOOLBAR_HEIGHT = 50;
-const LABEL_HEIGHT = 22;
-const GAP = 1;
+const TOOLBAR_HEIGHT = 72;
+const SIDEBAR_WIDTH = 360;
+const LABEL_HEIGHT = 26;
+const GAP = 8;
 const MAX_SCREENS = 4;
 const DEFAULT_URL = 'relay://welcome';
 
@@ -29,7 +30,10 @@ function layoutCells(countValue, widthValue, heightValue) {
   const height = Math.max(0, Math.floor(heightValue));
   const contentHeight = Math.max(0, height - TOOLBAR_HEIGHT);
 
-  if (count === 1) return [{ x: 0, y: TOOLBAR_HEIGHT, width, height: contentHeight }];
+  if (count === 1) {
+    return [{ x: 0, y: TOOLBAR_HEIGHT, width, height: contentHeight }];
+  }
+
   if (count === 2) {
     const left = Math.floor((width - GAP) / 2);
     return [
@@ -42,6 +46,7 @@ function layoutCells(countValue, widthValue, heightValue) {
   const top = Math.floor((contentHeight - GAP) / 2);
   const right = width - left - GAP;
   const bottom = contentHeight - top - GAP;
+
   return [
     { x: 0, y: TOOLBAR_HEIGHT, width: left, height: top },
     { x: left + GAP, y: TOOLBAR_HEIGHT, width: right, height: top },
@@ -92,7 +97,9 @@ function actionLooksSensitive(action) {
 
 module.exports = {
   TOOLBAR_HEIGHT,
+  SIDEBAR_WIDTH,
   LABEL_HEIGHT,
+  GAP,
   MAX_SCREENS,
   DEFAULT_URL,
   normalizeURL,
