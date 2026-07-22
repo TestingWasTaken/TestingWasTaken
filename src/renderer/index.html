@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Relay</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="toolbar">
+    <button id="back" title="Back">←</button>
+    <button id="forward" title="Forward">→</button>
+    <button id="reload" title="Reload">↻</button>
+    <form id="address-form">
+      <input id="address" value="relay://welcome" autocomplete="off" spellcheck="false" aria-label="Address or search" />
+    </form>
+    <label>Screens
+      <select id="screen-count">
+        <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option>
+      </select>
+    </label>
+    <label>Zoom
+      <select id="zoom">
+        <option value="0.5">50%</option><option value="0.67">67%</option><option value="0.8">80%</option><option value="0.9">90%</option><option value="1" selected>100%</option><option value="1.1">110%</option><option value="1.25">125%</option><option value="1.5">150%</option>
+      </select>
+    </label>
+    <label>Network
+      <select id="network"><option value="direct">Direct</option><option value="tor">Tor split</option></select>
+    </label>
+    <button id="check-ips" class="wide" title="Check each screen's public IP and Tor DNS path">Check IPs</button>
+    <label class="check"><input id="sync" type="checkbox" /> Sync activity</label>
+    <span id="status">Sync off</span>
+  </header>
+  <div id="labels"></div>
+  <script src="app.js"></script>
+</body>
+</html>

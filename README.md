@@ -1,62 +1,38 @@
-<div align="center">
+# Relay Browser 0.5
 
-# Hey, I'm JJ 👋
+A plain Electron browser that displays one to four independent screens.
 
-### CS Student @ UofT
+## Main controls
 
-**Turning ideas into software and challenges into solutions.**
+- **Screens:** one to four independent sessions.
+- **Zoom:** applies the same zoom level to every visible screen.
+- **Sync activity:** mirrors safe clicks, typing, checkboxes, radio buttons, select menus and scrolling from Screen 1.
+- **Network:** Direct or Tor split.
+- **Check IPs:** verifies each screen through its own Electron session.
 
-I enjoy figuring out how things work, building projects from scratch, and expanding what I can create with code. What I like most about computer science is that the learning never really ends, and there is always a new language, technology, problem, or idea to explore.
+## DNS protection in Tor split mode
 
-</div>
+Relay does not point Chromium straight at Tor SOCKS. Each screen connects to a small local HTTP CONNECT bridge. The bridge sends the destination hostname to Tor with a SOCKS5 domain-name request, so Tor performs the destination lookup remotely. The generated Tor configuration also enables `SafeSocks 1` and `TestSocks 1`. QUIC is disabled and non-proxied WebRTC UDP is disabled.
 
----
+Different Tor listener ports are isolated from one another by Tor. Separate circuits do not guarantee four unique exit IP addresses, so Relay reports duplicates honestly.
 
-## 💻 Languages & Experience
+## Safety
 
-<p align="center">
-  <img src="https://skillicons.dev/icons?i=python,html,css,js,git,github,vscode" />
-</p>
+Activity sync pauses when a screen shows a CAPTCHA or security challenge, when screens are on different pages, or when a password, file upload, payment, purchase, vote, account deletion or similar sensitive action is detected. CAPTCHAs are never copied, solved or bypassed.
 
-**Languages**
+## Install
 
-* Python
-* JavaScript
-* HTML
-* CSS
-
-**Tools & Technologies**
-
-* Git
-* GitHub
-* VS Code
-
----
-
-## 📚 Currently Learning
-
-<p align="center">
-  <img src="https://skillicons.dev/icons?i=java,cs,react" />
-</p>
-
-* Java
-* C#
-* React
-
----
-
-## 🚀 Current Direction
-
-Learning by building, experimenting with new technologies, and taking on projects that challenge me to improve.
-
-```text
-Learn → Build → Improve → Repeat
+```bash
+cd ~/Downloads/relay-browser-v0.5
+npm install --registry=https://registry.npmjs.org/ --no-package-lock
+npm test
+npm start
 ```
 
----
+Tor split requires Tor:
 
-<div align="center">
+```bash
+brew install tor
+```
 
-### Small progress every day compounds into something bigger.
-
-</div>
+You can also double-click `Start Relay.command`.
