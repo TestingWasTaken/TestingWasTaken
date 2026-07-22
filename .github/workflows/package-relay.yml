@@ -3,6 +3,8 @@ name: Package Relay 0.7
 on:
   push:
     branches: [relay-package-v07-temp]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
