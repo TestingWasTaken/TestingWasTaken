@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Relay</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <section id="workspace-shell">
+    <header class="toolbar">
+      <div class="brand" aria-label="Relay Browser">
+        <span class="brand-mark">R</span>
+        <span>Relay</span>
+      </div>
+      <nav class="nav-buttons" aria-label="Browser navigation">
+        <button id="back" title="Back" aria-label="Back">←</button>
+        <button id="forward" title="Forward" aria-label="Forward">→</button>
+        <button id="reload" title="Reload" aria-label="Reload">↻</button>
+      </nav>
+      <form id="address-form">
+        <input id="address" value="relay://welcome" autocomplete="off" spellcheck="false" aria-label="Address or search" />
+      </form>
+      <div id="top-status" class="status-chip">Direct · Sync off</div>
+    </header>
+    <div id="labels"></div>
+  </section>
+
+  <aside id="side-panel">
+    <div class="side-heading">
+      <div>
+        <p class="eyebrow">CONTROL PANEL</p>
+        <h1>Settings</h1>
+      </div>
+      <span id="network-indicator" class="indicator direct">Direct</span>
+    </div>
+
+    <section class="settings-card">
+      <h2>Workspace</h2>
+      <div class="field-grid">
+        <label>
+          <span>Screens</span>
+          <select id="screen-count">
+            <option value="1">1 screen</option>
+            <option value="2">2 screens</option>
+            <option value="3">3 screens</option>
+            <option value="4" selected>4 screens</option>
+          </select>
+        </label>
+        <label>
+          <span>Shared zoom</span>
+          <select id="zoom">
+            <option value="0.5">50%</option>
+            <option value="0.67">67%</option>
+            <option value="0.8">80%</option>
+            <option value="0.9">90%</option>
+            <option value="1" selected>100%</option>
+            <option value="1.1">110%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+          </select>
+        </label>
+      </div>
+      <label class="switch-row">
+        <span>
+          <strong>Sync activity</strong>
+          <small>Mirror supported actions from Screen 1</small>
+        </span>
+        <input id="sync" type="checkbox" />
+      </label>
+    </section>
+
+    <section class="settings-card">
+      <h2>Network</h2>
+      <label class="stacked-field">
+        <span>Route</span>
+        <select id="network">
+          <option value="direct">Direct</option>
+          <option value="tor">Tor split</option>
+        </select>
+      </label>
+      <button id="check-ips" class="primary">Check screen IPs</button>
+      <p id="dns-status" class="detail">Direct connection</p>
+      <div id="ip-summary" class="ip-summary"></div>
+    </section>
+
+    <section class="console-card">
+      <div class="console-heading">
+        <div>
+          <p class="eyebrow">LIVE OUTPUT</p>
+          <h2>Activity console</h2>
+        </div>
+        <button id="clear-log" class="text-button">Clear</button>
+      </div>
+      <div id="console-log" role="log" aria-live="polite"></div>
+    </section>
+  </aside>
+
+  <script src="app.js"></script>
+</body>
+</html>
