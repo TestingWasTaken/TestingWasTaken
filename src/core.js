@@ -1,8 +1,9 @@
 'use strict';
 
-const TOOLBAR_HEIGHT = 50;
-const LABEL_HEIGHT = 22;
-const GAP = 1;
+const TOOLBAR_HEIGHT = 96;
+const LABEL_HEIGHT = 26;
+const SIDEBAR_WIDTH = 360;
+const GAP = 2;
 const MAX_SCREENS = 4;
 const DEFAULT_URL = 'relay://welcome';
 
@@ -93,6 +94,7 @@ function actionLooksSensitive(action) {
 module.exports = {
   TOOLBAR_HEIGHT,
   LABEL_HEIGHT,
+  SIDEBAR_WIDTH,
   MAX_SCREENS,
   DEFAULT_URL,
   normalizeURL,
