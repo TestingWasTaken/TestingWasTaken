@@ -28,22 +28,56 @@ function freePort() {
   });
 }
 
+function portOpen(port, timeout = 700) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: '127.0.0.1', port });
+    const done = (value) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(value);
+    };
+    socket.setTimeout(timeout);
+    socket.once('connect', () => done(true));
+    socket.once('timeout', () => done(false));
+    socket.once('error', () => done(false));
+  });
+}
+
+async function findExistingTorPort() {
+  for (const port of [9050, 9150]) {
+    if (await portOpen(port)) return port;
+  }
+  return null;
+}
+
 function quoteTorPath(value) {
   return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
-async function startTorRuntime(userDataPath, screenCount = 4) {
+async function startTorRuntime(userDataPath, screenCount = 4, onLog = () => {}) {
+  const existingPort = await findExistingTorPort();
+  if (existingPort) {
+    onLog(`Using existing Tor SOCKS service on 127.0.0.1:${existingPort}`);
+    return {
+      socksPorts: Array(screenCount).fill(existingPort),
+      managed: false,
+      logs: [`Existing Tor service detected on port ${existingPort}`],
+      getUnsafeDnsAttempts: () => 0,
+      stop: () => {},
+    };
+  }
+
   const torBinary = findTorBinary();
-  if (!torBinary) throw new Error('Tor is not installed. Run: brew install tor');
+  if (!torBinary) {
+    throw new Error('Tor is not installed. Run: brew install tor');
+  }
 
-  const socksPorts = [];
-  for (let index = 0; index < screenCount; index += 1) socksPorts.push(await freePort());
-
-  const root = path.join(userDataPath, 'relay-tor');
+  const socksPort = await freePort();
+  const runId = `${Date.now()}-${process.pid}`;
+  const root = path.join(userDataPath, 'relay-tor', runId);
   const dataDirectory = path.join(root, 'data');
   const configPath = path.join(root, 'torrc');
   fs.mkdirSync(dataDirectory, { recursive: true });
-  try { fs.rmSync(path.join(dataDirectory, 'lock')); } catch {}
 
   const config = [
     `DataDirectory ${quoteTorPath(dataDirectory)}`,
@@ -53,38 +87,54 @@ async function startTorRuntime(userDataPath, screenCount = 4) {
     'TestSocks 1',
     'ControlPort 0',
     'DNSPort 0',
-    ...socksPorts.map((port) => `SocksPort 127.0.0.1:${port}`),
+    `SocksPort 127.0.0.1:${socksPort} IsolateSOCKSAuth`,
     'SocksPolicy accept 127.0.0.1',
     'SocksPolicy reject *',
     'Log notice stdout',
   ].join('\n');
   fs.writeFileSync(configPath, `${config}\n`);
 
-  const child = spawn(torBinary, ['-f', configPath], { stdio: ['ignore', 'pipe', 'pipe'] });
+  onLog(`Starting managed Tor from ${torBinary}`);
+  onLog(`Managed Tor SOCKS port: ${socksPort}`);
+
+  const child = spawn(torBinary, ['-f', configPath], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, HOME: process.env.HOME || userDataPath },
+  });
+
   const logs = [];
   let unsafeDnsAttempts = 0;
   let settled = false;
+  let bootstrapped = false;
+
+  const pushLine = (line) => {
+    const clean = String(line || '').trim();
+    if (!clean) return;
+    logs.push(clean);
+    if (logs.length > 250) logs.shift();
+    onLog(clean);
+    if (/unsafe socks|dns.*leak|leaking dns/i.test(clean)) unsafeDnsAttempts += 1;
+  };
 
   const boot = new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       if (settled) return;
       settled = true;
-      reject(new Error(`Tor did not finish bootstrapping. ${logs.slice(-6).join(' | ')}`));
-    }, 60000);
+      reject(new Error(`Tor did not finish bootstrapping. ${logs.slice(-12).join(' | ')}`));
+    }, 65000);
 
     const handle = (chunk) => {
-      const lines = String(chunk).split(/\r?\n/).filter(Boolean);
-      for (const line of lines) {
-        logs.push(line);
-        if (logs.length > 200) logs.shift();
-        if (/unsafe socks|dns.*leak|leaking dns/i.test(line)) unsafeDnsAttempts += 1;
+      for (const line of String(chunk).split(/\r?\n/)) {
+        pushLine(line);
         if (!settled && /Bootstrapped 100%/i.test(line)) {
           settled = true;
+          bootstrapped = true;
           clearTimeout(timeout);
           resolve();
         }
       }
     };
+
     child.stdout.on('data', handle);
     child.stderr.on('data', handle);
     child.once('error', (error) => {
@@ -93,29 +143,37 @@ async function startTorRuntime(userDataPath, screenCount = 4) {
       clearTimeout(timeout);
       reject(error);
     });
-    child.once('exit', (code) => {
+    child.once('exit', (code, signal) => {
+      pushLine(`Tor process exited with code ${code ?? 'none'}${signal ? `, signal ${signal}` : ''}`);
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
-      reject(new Error(`Tor exited before connecting (code ${code}). ${logs.slice(-6).join(' | ')}`));
+      reject(new Error(`Tor stopped before connecting (exit code ${code ?? 'unknown'}). ${logs.slice(-15).join(' | ')}`));
     });
   });
 
   try {
     await boot;
   } catch (error) {
-    child.kill('SIGTERM');
+    if (!child.killed) child.kill('SIGTERM');
     throw error;
   }
 
   return {
-    socksPorts,
+    socksPorts: Array(screenCount).fill(socksPort),
+    managed: true,
     logs,
     getUnsafeDnsAttempts: () => unsafeDnsAttempts,
     stop: () => {
-      if (!child.killed) child.kill('SIGTERM');
+      if (bootstrapped && !child.killed) child.kill('SIGTERM');
     },
   };
 }
 
-module.exports = { findTorBinary, freePort, startTorRuntime };
+module.exports = {
+  findTorBinary,
+  freePort,
+  portOpen,
+  findExistingTorPort,
+  startTorRuntime,
+};
