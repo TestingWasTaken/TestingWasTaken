@@ -1,0 +1,34 @@
+name: Package Relay 0.7
+
+on:
+  pull_request:
+    branches: [relay-validation-base-temp]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run source checks and tests
+        run: npm run check
+      - name: Build standalone ZIP
+        run: |
+          mkdir -p dist/relay-browser-v0.7
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'dist' ./ dist/relay-browser-v0.7/
+          cd dist
+          zip -r relay-browser-v0.7.zip relay-browser-v0.7
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: relay-browser-v0.7
+          path: dist/relay-browser-v0.7.zip
+          if-no-files-found: error
+          retention-days: 1
