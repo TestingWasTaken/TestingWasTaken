@@ -1,13 +1,13 @@
 {
   "name": "relay-browser",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "private": true,
-  "description": "Plain multi-screen Electron browser with guarded activity sync and Tor remote-DNS routing.",
+  "description": "Multi-screen Electron browser with guarded activity sync, Tor remote-DNS routing, and a visible activity console.",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check src/main.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && node --check src/preload.js && node --check src/page-preload.js && node --check src/renderer/app.js"
+    "check": "node --check src/main.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && node --check src/preload.js && node --check src/page-preload.js && node --check src/renderer/app.js && npm test"
   },
   "devDependencies": {
     "electron": "^37.2.3"
