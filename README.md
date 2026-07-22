@@ -1,18 +1,20 @@
-# Relay Browser 0.7
+# Relay Browser 0.8
 
-Relay opens one to four isolated Electron browser screens with guarded synchronization and optional Tor routing.
+Relay opens one to four isolated Electron browser screens with guarded synchronization and optional local Tor routing.
 
-## What changed in 0.7
+## What changed in 0.8
 
-- The blocking setup popup was removed.
-- Settings now stay in a spacious panel on the right.
-- A timestamped Activity Console shows navigation, network changes, Tor output, IP checks, captured actions, and replay results.
-- A Tor launch failure no longer prevents the workspace from opening.
-- Relay first reuses an existing Tor service on port 9050 or 9150.
-- When no service exists, Relay starts a managed Tor process on a free port.
-- If Tor still fails, Relay logs the exact error, restores Direct mode, and lets you retry.
-- The local Tor bridge uses bounded buffers to prevent the Array buffer allocation crash.
-- Each screen uses a separate SOCKS identity while destination hostnames are resolved through Tor.
+- Restored the Relay 0.6-style guided setup window.
+- Removed the permanent right-hand Settings and Activity Console panel.
+- Returned the browser workspace to the full window width.
+- Setup applies four visible stages: workspace, network/DNS, public-IP verification, and synchronization.
+- Tor failures no longer close setup or produce an unhandled remote-method error.
+- Relay no longer launches or manages its own Tor process.
+- Tor split only connects to an existing local SOCKS service on port 9050 or 9150.
+- When Tor is unavailable, setup offers **Continue in Direct** and keeps the workspace usable.
+- Each screen receives a separate SOCKS username so Tor can isolate its streams.
+- Destination hostnames are sent through the bounded local SOCKS5 bridge for remote DNS resolution.
+- The bounded bridge fix remains included to prevent unlimited memory allocation.
 
 ## Install on macOS
 
@@ -26,23 +28,24 @@ npm start
 
 You can also double-click `Start Relay.command` after dependencies have been installed.
 
-## Tor
+## Using Tor split
 
-Install Tor with:
+Relay deliberately does not start Tor itself. Install and start the Homebrew service before opening the workspace in Tor mode:
 
 ```bash
 brew install tor
-```
-
-Relay can use an existing Homebrew Tor service:
-
-```bash
 brew services start tor
 ```
 
-Starting the service yourself is optional because Relay can also launch a private managed process. Existing services are preferred because they avoid port and data-directory lock conflicts.
+Alternatively, open Tor Browser and leave it running. Relay checks local SOCKS ports 9050 and 9150.
 
-Separate SOCKS identities create isolated Tor streams, but Tor can still choose the same exit relay for multiple screens. Use **Verify public IPs** as the source of truth.
+To stop the Homebrew Tor service later:
+
+```bash
+brew services stop tor
+```
+
+Separate SOCKS identities create isolated Tor streams, but Tor can still choose the same exit relay for multiple screens. Use **Check IPs** as the source of truth.
 
 ## Synchronization safety
 
