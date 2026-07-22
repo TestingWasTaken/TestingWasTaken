@@ -7,92 +7,204 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <main class="workspace-ui">
-    <header class="toolbar">
-      <div class="nav-row">
-        <div class="nav-buttons">
-          <button id="back" title="Back">←</button>
-          <button id="forward" title="Forward">→</button>
-          <button id="reload" title="Reload">↻</button>
-        </div>
-        <form id="address-form">
-          <input id="address" value="relay://welcome" autocomplete="off" spellcheck="false" aria-label="Address or search" />
-        </form>
+  <header class="toolbar">
+    <div class="nav-row">
+      <div class="nav-buttons">
+        <button id="back" title="Back" aria-label="Back">←</button>
+        <button id="forward" title="Forward" aria-label="Forward">→</button>
+        <button id="reload" title="Reload" aria-label="Reload">↻</button>
       </div>
-      <div class="status-row">
-        <span id="status-dot" class="status-dot"></span>
-        <span id="status">Ready</span>
-      </div>
-    </header>
-    <div id="labels"></div>
-  </main>
+      <form id="address-form">
+        <input id="address" value="relay://welcome" autocomplete="off" spellcheck="false" aria-label="Address or search" />
+      </form>
+      <button id="open-settings" class="settings-button" title="Workspace settings">Settings</button>
+    </div>
 
-  <aside class="side-panel">
-    <section class="panel-section settings-section">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Relay 0.7</p>
-          <h1>Workspace settings</h1>
-        </div>
-      </div>
-
-      <div class="settings-grid">
-        <label class="field">
-          <span>Screens</span>
-          <select id="screen-count">
-            <option value="1">1 screen</option>
-            <option value="2">2 screens</option>
-            <option value="3">3 screens</option>
-            <option value="4" selected>4 screens</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Shared zoom</span>
-          <select id="zoom">
-            <option value="0.5">50%</option>
-            <option value="0.67">67%</option>
-            <option value="0.8">80%</option>
-            <option value="0.9">90%</option>
-            <option value="1" selected>100%</option>
-            <option value="1.1">110%</option>
-            <option value="1.25">125%</option>
-            <option value="1.5">150%</option>
-          </select>
-        </label>
-
-        <label class="field full">
-          <span>Network route</span>
-          <select id="network">
-            <option value="direct">Direct</option>
-            <option value="tor">Tor split</option>
-          </select>
-        </label>
-      </div>
-
-      <label class="toggle-row">
-        <input id="sync" type="checkbox" />
-        <span>
-          <strong>Synchronize activity</strong>
-          <small>Mirror safe actions from Screen 1.</small>
-        </span>
+    <div class="control-row">
+      <label class="compact-field">
+        <span>Screens</span>
+        <select id="screen-count">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+        </select>
       </label>
 
-      <button id="check-ips" class="primary-button" title="Check each screen's public IP and Tor route">Verify public IPs</button>
-      <p id="dns-status" class="dns-status">Direct connection</p>
-    </section>
+      <label class="compact-field">
+        <span>Zoom</span>
+        <select id="zoom">
+          <option value="0.5">50%</option>
+          <option value="0.67">67%</option>
+          <option value="0.8">80%</option>
+          <option value="0.9">90%</option>
+          <option value="1" selected>100%</option>
+          <option value="1.1">110%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+        </select>
+      </label>
 
-    <section class="panel-section console-section">
-      <div class="console-heading">
+      <label class="compact-field network-field">
+        <span>Network</span>
+        <select id="network">
+          <option value="direct">Direct</option>
+          <option value="tor">Tor split</option>
+        </select>
+      </label>
+
+      <button id="check-ips" class="secondary-button">Check IPs</button>
+
+      <label class="sync-control">
+        <input id="sync" type="checkbox" />
+        <span>Sync activity</span>
+      </label>
+
+      <div class="status-area">
+        <span id="status-dot" class="status-dot"></span>
         <div>
-          <p class="eyebrow">Live</p>
-          <h2>Activity console</h2>
+          <strong id="status">Choose your workspace settings</strong>
+          <small id="dns-status">Direct connection</small>
         </div>
-        <button id="clear-console" class="text-button">Clear</button>
       </div>
-      <div id="console" class="console" role="log" aria-live="polite"></div>
+    </div>
+  </header>
+
+  <div id="labels"></div>
+
+  <div id="setup-backdrop" class="setup-backdrop">
+    <section class="setup-dialog" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+      <header class="setup-header">
+        <div>
+          <p class="eyebrow">Relay 0.8</p>
+          <h1 id="setup-title">Set up your workspace</h1>
+          <p class="setup-intro">Choose how the browser panes should open. Relay keeps the workspace hidden until these settings are applied.</p>
+        </div>
+        <button id="setup-cancel" class="icon-close" aria-label="Close settings">×</button>
+      </header>
+
+      <div class="setup-content">
+        <div class="setup-options">
+          <section class="option-section">
+            <div class="section-title">
+              <span class="section-number">1</span>
+              <div>
+                <h2>Workspace</h2>
+                <p>Choose the pane layout and shared page zoom.</p>
+              </div>
+            </div>
+
+            <div class="option-grid">
+              <label class="field">
+                <span>Number of screens</span>
+                <select id="setup-screen-count">
+                  <option value="1">1 screen</option>
+                  <option value="2">2 screens</option>
+                  <option value="3">3 screens</option>
+                  <option value="4" selected>4 screens</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Shared zoom</span>
+                <select id="setup-zoom">
+                  <option value="0.5">50%</option>
+                  <option value="0.67">67%</option>
+                  <option value="0.8">80%</option>
+                  <option value="0.9">90%</option>
+                  <option value="1" selected>100%</option>
+                  <option value="1.1">110%</option>
+                  <option value="1.25">125%</option>
+                  <option value="1.5">150%</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="option-section">
+            <div class="section-title">
+              <span class="section-number">2</span>
+              <div>
+                <h2>Network route</h2>
+                <p>Direct is immediate. Tor split uses a Tor service already running on your Mac.</p>
+              </div>
+            </div>
+
+            <div class="route-grid">
+              <label class="route-card">
+                <input type="radio" name="setup-network" value="direct" checked />
+                <span>
+                  <strong>Direct</strong>
+                  <small>Use your normal internet connection.</small>
+                </span>
+              </label>
+
+              <label class="route-card">
+                <input type="radio" name="setup-network" value="tor" />
+                <span>
+                  <strong>Tor split</strong>
+                  <small>Separate SOCKS identity for each screen.</small>
+                </span>
+              </label>
+            </div>
+
+            <div class="tor-note">
+              Relay does not launch Tor itself. Before choosing Tor split, run
+              <code>brew install tor</code> and <code>brew services start tor</code>, or open Tor Browser.
+            </div>
+          </section>
+
+          <section class="option-section compact-options">
+            <label class="toggle-card">
+              <input id="setup-check-ips" type="checkbox" checked />
+              <span>
+                <strong>Verify public IPs</strong>
+                <small>Check every visible screen after the route is connected.</small>
+              </span>
+            </label>
+
+            <label class="toggle-card">
+              <input id="setup-sync" type="checkbox" />
+              <span>
+                <strong>Synchronize activity</strong>
+                <small>Mirror supported actions from Screen 1.</small>
+              </span>
+            </label>
+          </section>
+        </div>
+
+        <aside class="setup-progress-panel">
+          <p class="eyebrow">Setup progress</p>
+          <h2>Preparing Relay</h2>
+          <ol class="progress-list">
+            <li id="step-workspace" class="progress-step">
+              <span class="step-icon">1</span>
+              <span><strong>Workspace layout and zoom</strong><small>Waiting</small></span>
+            </li>
+            <li id="step-network" class="progress-step">
+              <span class="step-icon">2</span>
+              <span><strong>Network and DNS route</strong><small>Waiting</small></span>
+            </li>
+            <li id="step-ip" class="progress-step">
+              <span class="step-icon">3</span>
+              <span><strong>Public-IP verification</strong><small>Waiting</small></span>
+            </li>
+            <li id="step-sync" class="progress-step">
+              <span class="step-icon">4</span>
+              <span><strong>Synchronization preference</strong><small>Waiting</small></span>
+            </li>
+          </ol>
+
+          <div id="setup-error" class="setup-error" hidden></div>
+        </aside>
+      </div>
+
+      <footer class="setup-footer">
+        <button id="continue-direct" class="secondary-button" hidden>Continue in Direct</button>
+        <button id="setup-launch" class="primary-button">Open workspace</button>
+      </footer>
     </section>
-  </aside>
+  </div>
 
   <script src="app.js"></script>
 </body>
