@@ -17,48 +17,17 @@
       <form id="address-form">
         <input id="address" value="relay://welcome" autocomplete="off" spellcheck="false" aria-label="Address or search" />
       </form>
-      <button id="open-settings" class="settings-button" title="Workspace settings">Settings</button>
+      <button id="restart-all" class="restart-button" title="Clear and rebuild every screen">Restart everything</button>
+      <button id="open-settings" class="settings-button" title="Open every Relay setting">Settings</button>
     </div>
 
     <div class="control-row">
-      <label class="compact-field">
-        <span>Screens</span>
-        <select id="screen-count">
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4" selected>4</option>
-        </select>
-      </label>
-
-      <label class="compact-field">
-        <span>Zoom</span>
-        <select id="zoom">
-          <option value="0.5">50%</option>
-          <option value="0.67">67%</option>
-          <option value="0.8">80%</option>
-          <option value="0.9">90%</option>
-          <option value="1" selected>100%</option>
-          <option value="1.1">110%</option>
-          <option value="1.25">125%</option>
-          <option value="1.5">150%</option>
-        </select>
-      </label>
-
-      <label class="compact-field network-field">
-        <span>Network</span>
-        <select id="network">
-          <option value="direct">Direct</option>
-          <option value="tor">Tor split</option>
-        </select>
-      </label>
-
-      <button id="check-ips" class="secondary-button">Check IPs</button>
-
-      <label class="sync-control">
-        <input id="sync" type="checkbox" />
-        <span>Sync activity</span>
-      </label>
+      <div class="workspace-summary" aria-label="Current workspace settings">
+        <span id="summary-screens" class="summary-chip">4 screens</span>
+        <span id="summary-zoom" class="summary-chip">100% zoom</span>
+        <span id="summary-network" class="summary-chip">Direct</span>
+        <span id="summary-sync" class="summary-chip">Sync off</span>
+      </div>
 
       <div class="status-area">
         <span id="status-dot" class="status-dot"></span>
@@ -73,24 +42,24 @@
   <div id="labels"></div>
 
   <div id="setup-backdrop" class="setup-backdrop">
-    <section class="setup-dialog" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+    <section id="setup-dialog" class="setup-dialog" role="dialog" aria-modal="true" aria-labelledby="setup-title">
       <header class="setup-header">
         <div>
-          <p class="eyebrow">Relay 0.8</p>
+          <p id="setup-eyebrow" class="eyebrow">Relay 0.9</p>
           <h1 id="setup-title">Set up your workspace</h1>
-          <p class="setup-intro">Choose how the browser panes should open. Relay keeps the workspace hidden until these settings are applied.</p>
+          <p id="setup-intro" class="setup-intro">Every setting is applied behind this locked screen. Browser panes stay inaccessible until the full operation finishes.</p>
         </div>
         <button id="setup-cancel" class="icon-close" aria-label="Close settings" hidden>×</button>
       </header>
 
-      <div class="setup-content">
-        <div class="setup-options">
+      <div id="setup-content" class="setup-content">
+        <div id="setup-options" class="setup-options">
           <section class="option-section">
             <div class="section-title">
               <span class="section-number">1</span>
               <div>
                 <h2>Workspace</h2>
-                <p>Choose the pane layout and shared page zoom.</p>
+                <p>Choose the visible pane count and shared page zoom.</p>
               </div>
             </div>
 
@@ -125,8 +94,8 @@
             <div class="section-title">
               <span class="section-number">2</span>
               <div>
-                <h2>Network route</h2>
-                <p>Direct is immediate. Tor split uses a Tor service already running on your Mac.</p>
+                <h2>Network and DNS route</h2>
+                <p>Direct is immediate. Tor split connects to a Tor SOCKS service already running on your Mac.</p>
               </div>
             </div>
 
@@ -143,7 +112,7 @@
                 <input type="radio" name="setup-network" value="tor" />
                 <span>
                   <strong>Tor split</strong>
-                  <small>Separate SOCKS identity for each screen.</small>
+                  <small>A separate SOCKS identity is created for every screen.</small>
                 </span>
               </label>
             </div>
@@ -159,7 +128,7 @@
               <input id="setup-check-ips" type="checkbox" checked />
               <span>
                 <strong>Verify public IPs</strong>
-                <small>Check every visible screen after the route is connected.</small>
+                <small>Check every visible screen before unlocking the workspace.</small>
               </span>
             </label>
 
@@ -171,25 +140,42 @@
               </span>
             </label>
           </section>
+
+          <section class="option-section reset-section">
+            <div class="section-title">
+              <span class="section-number">3</span>
+              <div>
+                <h2>Reset an individual screen</h2>
+                <p>Clear cookies, cache, site storage, DNS state, and the current Tor identity for only one screen.</p>
+              </div>
+            </div>
+
+            <div class="screen-reset-grid">
+              <button class="screen-reset-button" data-screen="1"><strong>Reset Screen 1</strong><small>Controller screen</small></button>
+              <button class="screen-reset-button" data-screen="2"><strong>Reset Screen 2</strong><small>Independent session</small></button>
+              <button class="screen-reset-button" data-screen="3"><strong>Reset Screen 3</strong><small>Independent session</small></button>
+              <button class="screen-reset-button" data-screen="4"><strong>Reset Screen 4</strong><small>Independent session</small></button>
+            </div>
+          </section>
         </div>
 
-        <aside class="setup-progress-panel">
-          <p class="eyebrow">Setup progress</p>
-          <h2>Preparing Relay</h2>
+        <aside id="setup-progress-panel" class="setup-progress-panel">
+          <p id="progress-eyebrow" class="eyebrow">Setup progress</p>
+          <h2 id="progress-title">Preparing Relay</h2>
           <ol class="progress-list">
-            <li id="step-workspace" class="progress-step">
+            <li id="progress-step-0" class="progress-step">
               <span class="step-icon">1</span>
               <span><strong>Workspace layout and zoom</strong><small>Waiting</small></span>
             </li>
-            <li id="step-network" class="progress-step">
+            <li id="progress-step-1" class="progress-step">
               <span class="step-icon">2</span>
               <span><strong>Network and DNS route</strong><small>Waiting</small></span>
             </li>
-            <li id="step-ip" class="progress-step">
+            <li id="progress-step-2" class="progress-step">
               <span class="step-icon">3</span>
               <span><strong>Public-IP verification</strong><small>Waiting</small></span>
             </li>
-            <li id="step-sync" class="progress-step">
+            <li id="progress-step-3" class="progress-step">
               <span class="step-icon">4</span>
               <span><strong>Synchronization preference</strong><small>Waiting</small></span>
             </li>
@@ -200,8 +186,9 @@
       </div>
 
       <footer class="setup-footer">
+        <button id="setup-back" class="secondary-button" hidden>Back to settings</button>
         <button id="continue-direct" class="secondary-button" hidden>Continue in Direct</button>
-        <button id="setup-launch" class="primary-button">Open workspace</button>
+        <button id="setup-launch" class="primary-button">Apply settings</button>
       </footer>
     </section>
   </div>
