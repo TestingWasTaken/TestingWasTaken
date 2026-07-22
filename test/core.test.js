@@ -4,7 +4,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   TOOLBAR_HEIGHT,
-  SIDEBAR_WIDTH,
   normalizeURL,
   clampScreenCount,
   clampZoom,
@@ -25,12 +24,11 @@ test('limits screen count and zoom', () => {
   assert.equal(clampZoom(3), 1.5);
 });
 
-test('four screens produce four cells with the spacious toolbar', () => {
+test('four screens use the full-width workspace below the setup toolbar', () => {
   const cells = layoutCells(4, 1000, 800);
   assert.equal(cells.length, 4);
   assert.equal(cells[0].width + cells[1].width + 2, 1000);
   assert.equal(cells[0].y, TOOLBAR_HEIGHT);
-  assert.equal(SIDEBAR_WIDTH, 360);
 });
 
 test('page key ignores query differences', () => {
