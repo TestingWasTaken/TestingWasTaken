@@ -1,0 +1,21 @@
+name: Relay 0.9 checks
+
+on:
+  push:
+    branches:
+      - relay-browser-v0.9-build
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run syntax and unit checks
+        run: npm run check
