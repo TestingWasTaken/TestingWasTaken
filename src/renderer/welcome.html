@@ -3,34 +3,220 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Relay test page</title>
+  <title>Conduit</title>
   <style>
-    body { margin: 24px; max-width: 680px; font: 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #222; }
-    h1 { font-size: 24px; margin: 0 0 8px; }
-    p { line-height: 1.5; }
-    label { display: block; margin: 16px 0 5px; }
-    input[type="text"], select { width: 100%; max-width: 420px; height: 34px; padding: 0 8px; }
-    button { margin-top: 16px; height: 34px; padding: 0 12px; }
-    #count { font-weight: 700; }
-    .space { height: 700px; border-left: 1px solid #bbb; margin: 25px 0; padding-left: 12px; color: #666; }
+    :root {
+      color-scheme: light;
+      --paper: #f2f0e9;
+      --ink: #252521;
+      --muted: #77736a;
+      --line: #c9c5ba;
+      --accent: #596b62;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: auto; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    main {
+      width: min(620px, calc(100% - 38px));
+      margin: 52px auto 80px;
+    }
+
+    .masthead {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .masthead strong {
+      font-size: 12px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .masthead span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    h1 {
+      max-width: 520px;
+      margin: 48px 0 12px -2px;
+      font-size: clamp(34px, 7vw, 58px);
+      line-height: .98;
+      letter-spacing: -.055em;
+      font-weight: 720;
+    }
+
+    .intro {
+      max-width: 430px;
+      margin: 0;
+      color: #5f5c55;
+      font-size: 15px;
+    }
+
+    .note {
+      margin: 30px 0 0 22px;
+      color: var(--muted);
+      font-size: 12px;
+      transform: rotate(-.45deg);
+    }
+
+    .test-strip {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-top: 46px;
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .test-strip input[type="text"] {
+      min-width: 0;
+      height: 38px;
+      padding: 0 11px;
+      border: 1px solid #b9b5aa;
+      border-radius: 2px;
+      background: rgba(255,255,255,.45);
+      color: var(--ink);
+      font: inherit;
+      outline: none;
+    }
+
+    .test-strip input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(89,107,98,.12);
+    }
+
+    button,
+    select {
+      height: 38px;
+      border: 1px solid #aaa69c;
+      border-radius: 2px;
+      background: #ebe8df;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    button {
+      padding: 0 14px;
+      cursor: pointer;
+    }
+
+    button:active { transform: translateY(1px); }
+
+    .small-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+      grid-column: 1 / -1;
+      color: #5f5c55;
+      font-size: 12px;
+    }
+
+    .small-controls select { padding: 0 26px 0 9px; }
+
+    .counter {
+      margin-left: auto;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .scroll-marker {
+      position: relative;
+      min-height: 780px;
+      margin-top: 42px;
+      padding-left: 18px;
+      border-left: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .scroll-marker::before {
+      content: "scroll test — pane one should lead";
+      position: sticky;
+      top: 18px;
+      display: inline-block;
+      padding: 3px 7px 4px;
+      background: var(--paper);
+      transform: translateX(-25px) rotate(-.6deg);
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    footer em { font-style: normal; transform: translateY(2px); }
+
+    @media (max-width: 520px) {
+      main { margin-top: 30px; }
+      .test-strip { grid-template-columns: 1fr; }
+      .test-strip button { width: 100%; }
+      .counter { margin-left: 0; }
+    }
   </style>
 </head>
 <body>
-  <h1>Relay test page</h1>
-  <p>Turn on <strong>Sync activity</strong>. Type, change the checkbox and menu, click the button, and scroll in Screen 1. The other visible screens should follow.</p>
-  <label for="message">Text</label>
-  <input id="message" type="text" placeholder="Type here" />
-  <label><input id="enabled" type="checkbox" /> Checkbox</label>
-  <label for="choice">Menu</label>
-  <select id="choice"><option>First</option><option>Second</option><option>Third</option></select>
-  <div><button id="increment">Increment</button> Count: <span id="count">0</span></div>
-  <div class="space">Scroll test</div>
-  <p>Bottom of the test page.</p>
+  <main>
+    <div class="masthead">
+      <strong>Conduit</strong>
+      <span>local page / nothing is being sent</span>
+    </div>
+
+    <h1>One page,<br />a few panes.</h1>
+    <p class="intro">Use this quiet page to check typing, clicking and scrolling before opening something real.</p>
+    <p class="note">a little plain on purpose. moved this note twice and left it here.</p>
+
+    <section class="test-strip" aria-label="Pane following test">
+      <input id="message" type="text" placeholder="type in pane 1" autocomplete="off" />
+      <button id="increment" type="button">Add one</button>
+
+      <div class="small-controls">
+        <label><input id="enabled" type="checkbox" /> keep this checked</label>
+        <label>
+          tiny menu
+          <select id="choice">
+            <option>First</option>
+            <option>Second</option>
+            <option>Third</option>
+          </select>
+        </label>
+        <span class="counter">count <strong id="count">0</strong></span>
+      </div>
+    </section>
+
+    <div class="scroll-marker"></div>
+
+    <footer>
+      <span>relay://welcome</span>
+      <em>works best after Follow pane 1 is on</em>
+    </footer>
+  </main>
+
   <script>
     let count = 0;
+    const output = document.querySelector('#count');
     document.querySelector('#increment').addEventListener('click', () => {
       count += 1;
-      document.querySelector('#count').textContent = String(count);
+      output.textContent = String(count);
     });
   </script>
 </body>
