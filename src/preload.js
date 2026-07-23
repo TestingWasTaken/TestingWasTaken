@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('relay', {
   setSetupVisible: (visible) => ipcRenderer.invoke('set-setup-visible', visible),
   getAdBlockStatus: () => ipcRenderer.invoke('get-adblock-status'),
   setAdBlockEnabled: (enabled) => ipcRenderer.invoke('set-adblock-enabled', enabled),
+  openExternal: (value) => ipcRenderer.invoke('open-external-v16', value),
 
   onState: (callback) => ipcRenderer.on('browser-state', (_event, state) => {
     if (!state?.syncRequested || state.networkBusy || state.setupVisible) {
