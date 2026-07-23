@@ -1,20 +1,17 @@
-# Conduit 0.18
+# Conduit 0.19
 
 Conduit is a one-to-eight-pane Electron browser for repeating ordinary browsing work across isolated sessions. Pane 1 can lead navigation, scrolling, typing, and clicks while followers keep separate cookies, storage, cache, and optional route identities.
 
 ## What changed
 
-- Replaced the layered versioned renderer with one HTML file, one stylesheet, and one renderer script.
-- Replaced the competing synchronization wrappers with one pane preload and one main-process coordinator.
-- Added a live pane map showing registered, aligned, loading, paused, and catching-up panes.
-- Added focus mode, per-pane pause/resume, reset, and editable pane names.
-- Added selective following controls for navigation, scrolling, typing, and clicks.
-- Added saved workspace presets and automatic restoration of pane count, zoom, labels, and previous URLs.
-- Added native macOS shortcuts and menus, a right-click pane menu, an About window, system Light/Dark appearance, and a Conduit dock icon.
-- Simplified the toolbar and Settings interface around one warm-gray and forest-green identity.
-- Removed decorative event hashes, multiple color-theme presets, numbered section tiles, and permanent diagnostic noise.
-- Kept the ad filter optional, with a compatibility warning.
-- Kept CAPTCHA, password, file-upload, payment, purchase, voting, and account-deletion actions outside synchronization.
+- Restored the translucent white-and-black Mac utility palette with a restrained blue accent.
+- Appearance is now an explicit Light or Dark choice. Conduit no longer follows or guesses the device appearance.
+- Replaced the Settings close symbol with a plain **Done** button.
+- Moved pane focus, pause, rename, and reset controls into the normal Settings flow instead of a right-side dashboard.
+- Marked Privacy as **[BETA]**.
+- Added `relay://home` as the visible local address while keeping `relay://welcome` as a compatibility alias for old saved workspaces.
+- Rebuilt the local home page as a plain synchronization test with text, a checkbox, a menu, a button, and a scroll area.
+- Kept the Conduit 0.18 synchronization coordinator, eight-pane support, saved workspaces, session restore, selective following, ad filter, and route controls.
 
 ## Install on macOS
 
