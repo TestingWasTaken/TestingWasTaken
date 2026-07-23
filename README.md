@@ -1,18 +1,18 @@
-# Conduit 0.24
+# Conduit 0.25
 
 Conduit is a one-to-eight-screen Electron browser for repeating ordinary browsing work across isolated sessions. Screen 1 can lead navigation, scrolling, typing, and clicks while followers keep separate cookies, storage, cache, and optional route identities.
 
 ## What changed
 
-- Settings now keeps pane count, scale, sound, route, and following choices as a draft until Apply and close.
-- Turning Follow Screen 1 or Scrolling off clears old follower scroll targets so every screen can scroll independently again.
-- Default follower names are Follower 1 through Follower 7.
-- The main screen says Screen 1 leads instead of Leader.
-- Audible screens show Sound enabled.
-- Follower status shows the IP address beside Aligned, Connected, or Paused.
-- Removed the old Use this page sentence and rebuilt `relay://welcome` with a visible result line for text, checkbox, option, button, count, and scroll testing.
-- Refined the Settings background into a lighter transparent glass surface with simpler section separators.
-- Kept the clean four-screen launch, 80% scale, address retry, low-latency scrolling, reset recovery, and post-Settings resynchronization.
+- Added a 350 ms Screen 1 heartbeat that repairs missed URL, scroll, and safe form-control updates.
+- Replayed clicks and inputs now receive a result; failed target matching gets one safe retry.
+- Followers report a measured synchronization percentage based on URL, scroll distance, and matched controls.
+- The Screens section shows per-screen percentages and an average instead of only saying Aligned.
+- Fast animation-frame scrolling remains the primary path; the heartbeat is a recovery layer rather than a replacement.
+- Turning Follow Screen 1 or Scrolling off still clears old follower scroll targets immediately.
+- When location lookup fails but an IP was found, Conduit displays `IP address · <number>`.
+- Settings continues to keep screen count, scale, sound, route, and following choices as a draft until Apply and close.
+- Kept the clean four-screen launch, 80% scale, reset recovery, transparent Settings surface, and alignment test.
 
 ## Install on macOS
 
