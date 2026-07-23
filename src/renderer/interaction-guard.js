@@ -27,6 +27,26 @@
     const backdrop = document.querySelector('#setup-backdrop');
     const dialog = document.querySelector('#setup-dialog');
 
+    const style = document.createElement('style');
+    style.dataset.conduitInteractionFix = 'true';
+    style.textContent = `
+      #labels { pointer-events: none !important; }
+      .toolbar,
+      .toolbar *,
+      #setup-dialog,
+      #setup-dialog * { pointer-events: auto; }
+      #setup-backdrop.hidden {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+      #setup-backdrop:not(.hidden) {
+        visibility: visible;
+        pointer-events: auto;
+      }
+    `;
+    document.head.appendChild(style);
+
     toolbar?.setAttribute('data-interactive', 'true');
     quickControls?.setAttribute('data-interactive', 'true');
     backdrop?.setAttribute('data-interactive', 'true');
