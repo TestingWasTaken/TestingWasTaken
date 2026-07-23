@@ -8,10 +8,10 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('package launches Conduit 0.25 through the heartbeat entry', () => {
+test('package launches Conduit 0.25.1 through the heartbeat entry', () => {
   const pkg = JSON.parse(read('package.json'));
   assert.equal(pkg.main, 'src/main-entry-v25.js');
-  assert.equal(pkg.version, '0.25.0');
+  assert.equal(pkg.version, '0.25.1');
   assert.match(pkg.scripts.check, /main-v25-sync\.js/);
   assert.match(pkg.scripts.check, /main-v25-ip-fallback\.js/);
   assert.match(pkg.scripts.check, /bridge-v25\.js/);
