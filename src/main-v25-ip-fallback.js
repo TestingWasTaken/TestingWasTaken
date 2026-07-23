@@ -60,8 +60,7 @@ function requestedPanes(value) {
     .filter((pane) => Number.isInteger(pane) && pane >= 1 && pane <= MAX_PANES);
 }
 
-ipcMain.on('register-pane-v18', rememberPane);
-ipcMain.on('pane-state-v18', rememberPane);
+for (const channel of ['v26-register', 'v26-state']) ipcMain.on(channel, rememberPane);
 
 ipcMain.handle('v25-check-ip-fallbacks', async (_event, request) => {
   const paneNumbers = requestedPanes(request);
