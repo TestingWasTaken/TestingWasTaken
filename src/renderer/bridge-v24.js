@@ -13,6 +13,7 @@
     resetPane: api.resetPane,
     setSettingsVisible: api.setSettingsVisible,
     getWorkspace: api.getWorkspace,
+    checkIPs: api.checkIPs,
     onState: api.onState,
     onHealth: api.onHealth,
   };
@@ -25,7 +26,8 @@
   let initializing = true;
   let navigationPromise = null;
   let paneTask = null;
-  let lastPaneMarkup = '';
+  let patchQueued = false;
+  const fallbackIPs = new Map();
 
   function clampPaneCount(value) {
     return Math.max(1, Math.min(8, Number(value) || 4));
@@ -38,17 +40,16 @@
   function normalizePaneName(value, index) {
     const text = String(value || '').trim();
     if (index === 0 && (!text || /^(main|main screen|pane 1)$/i.test(text))) return 'Main screen';
-    if (index > 0 && (!text || /^pane \d+$/i.test(text) || /^follower [a-g]$/i.test(text))) {
-      return `Follower ${index}`;
-    }
+    if (index > 0 && (!text || /^pane \d+$/i.test(text) || /^follower [a-g]$/i.test(text))) return `Follower ${index}`;
     return text || defaultPaneName(index);
   }
 
   function normalizeRoute(item) {
-    if (!item || typeof item !== 'object' || !item.ok) return item;
+    if (!item || typeof item !== 'object') return item;
+    const ip = String(item.ip || '').trim();
     const location = String(item.location || '').trim();
-    if (!location || /^location unavailable$/i.test(location)) {
-      return { ...item, location: 'IP swapped · location unavailable' };
+    if (item.ok && (!location || /^location unavailable$/i.test(location) || /^ip swapped/i.test(location))) {
+      return { ...item, ip, location: ip ? `IP address · ${ip}` : 'IP address unavailable' };
     }
     return item;
   }
@@ -64,16 +65,12 @@
     };
   }
 
-  function anyPolicy(policy = {}) {
-    return Object.values(policy).some(Boolean);
-  }
-
-  function soundEnabled(paneNumber) {
-    const mode = latestState?.audioMode || 'leader';
-    if (mode === 'all') return paneNumber <= Number(latestState?.screenCount || 1);
-    if (mode === 'focused') return paneNumber === Number(latestState?.focusedPane || 1);
-    if (mode === 'leader') return paneNumber === 1;
-    return false;
+  function routeForPane(paneNumber) {
+    const route = normalizeRoute(latestState?.ips?.[paneNumber - 1]);
+    const existingIP = String(route?.ip || '').trim();
+    if (existingIP && existingIP !== 'Unavailable') return route;
+    const fallback = fallbackIPs.get(paneNumber);
+    return fallback ? { ok: true, ip: fallback, location: `IP address · ${fallback}` } : route;
   }
 
   function statusForPane(paneNumber) {
@@ -82,20 +79,25 @@
     if (!row?.registered) return 'Starting';
     if (row.paused) return 'Paused';
     if (row.challenge) return 'Skipped';
-    if (row.loading) return 'Loading';
-    if (row.caughtUp) return 'Aligned';
-    if (row.scrollOffset !== null && row.scrollOffset !== undefined) return 'Catching up';
-    return 'Connected';
+    if (!latestHealth?.followingEnabled) return 'Independent';
+    const score = Number(row.syncScore);
+    if (Number.isFinite(score) && score >= 95) return `Synced ${score}%`;
+    if (Number.isFinite(score) && score >= 70) return `Catching up ${score}%`;
+    if (Number.isFinite(score)) return `Resyncing ${score}%`;
+    return row.loading ? 'Loading' : 'Connecting sync';
   }
 
-  function routeForPane(paneNumber) {
-    return latestState?.ips?.[paneNumber - 1] || null;
+  function soundEnabled(paneNumber) {
+    const mode = latestState?.audioMode || 'leader';
+    if (mode === 'all') return paneNumber <= Number(latestState?.screenCount || 1);
+    if (mode === 'focused') return paneNumber === Number(latestState?.focusedPane || 1);
+    return mode === 'leader' && paneNumber === 1;
   }
 
   function paneMeta(paneNumber) {
     const parts = [statusForPane(paneNumber)];
     const route = routeForPane(paneNumber);
-    if (paneNumber > 1) parts.push(route?.ok && route.ip ? route.ip : 'IP not checked');
+    if (paneNumber > 1) parts.push(route?.ip && route.ip !== 'Unavailable' ? route.ip : 'IP not checked');
     if (soundEnabled(paneNumber)) parts.push('Sound enabled');
     return parts.join(' · ');
   }
@@ -103,39 +105,28 @@
   function paneLocation(paneNumber) {
     const route = routeForPane(paneNumber);
     if (!route) return paneNumber === 1 ? 'IP address not checked' : '';
-    if (!route.ok) return route.error ? `IP unavailable · ${route.error}` : 'IP unavailable';
-    return route.location || route.ip || 'IP address unavailable';
-  }
-
-  async function clearFollowerTargets() {
-    try { await api.clearScrollTargets(); } catch {}
-  }
-
-  async function resyncBurst() {
-    try { await api.requestPaneStates(); } catch {}
-    for (const delay of [0, 180, 520]) {
-      if (delay) await wait(delay);
-      try { await api.resyncAll(); } catch {}
+    const ip = String(route.ip || '').trim();
+    const location = String(route.location || '').trim();
+    if (!route.ok) return ip && ip !== 'Unavailable' ? `IP address · ${ip}` : 'IP address unavailable';
+    if (!location || /^location unavailable$/i.test(location) || /^IP address\s*·/i.test(location)) {
+      return ip ? `IP address · ${ip}` : 'IP address unavailable';
     }
+    return ip ? `${location} · ${ip}` : location;
   }
 
-  async function verifiedPaneCount(value, shouldResync = false) {
+  async function verifiedPaneCount(value) {
     const count = clampPaneCount(value);
     if (paneTask) await paneTask;
-
     paneTask = (async () => {
       let result = await original.setPaneCount(count);
       for (let attempt = 0; attempt < 2; attempt += 1) {
-        await wait(160 + (attempt * 170));
+        await wait(140 + attempt * 160);
         const current = await original.getWorkspace().catch(() => null);
         if (Number(current?.screenCount) === count) break;
         result = await original.setPaneCount(count);
       }
-      try { await api.syncV22State({ visibleCount: count }); } catch {}
-      if (shouldResync) await resyncBurst();
       return result;
     })();
-
     try {
       return await paneTask;
     } finally {
@@ -143,48 +134,40 @@
     }
   }
 
+  async function resync() {
+    try { return await api.resyncV26(); } catch { return null; }
+  }
+
   api.getWorkspace = async () => mapState(await original.getWorkspace());
 
   api.onState = (callback) => original.onState((state) => {
     latestState = mapState(state);
     callback(latestState);
-    queueMicrotask(patchPaneUI);
+    queuePatch();
   });
 
   api.onHealth = (callback) => original.onHealth((health) => {
     latestHealth = health;
     callback(health);
-    queueMicrotask(patchPaneUI);
+    queuePatch();
   });
 
-  api.setPaneCount = (value) => verifiedPaneCount(value, false);
-
-  api.setPolicy = async (policy) => {
-    const result = await original.setPolicy(policy);
-    try { await api.syncV22State({ policy: policy || {} }); } catch {}
-    if (!policy?.scrolling) await clearFollowerTargets();
-    return result;
-  };
-
+  api.setPaneCount = verifiedPaneCount;
+  api.setPolicy = (next) => original.setPolicy(next || DEFAULT_POLICY);
   api.setFollowing = async (enabled) => {
-    const result = await original.setFollowing(enabled);
-    try { await api.syncV22State({ following: Boolean(enabled) }); } catch {}
-    if (!enabled) await clearFollowerTargets();
+    const result = await original.setFollowing(Boolean(enabled));
+    if (result?.enabled) await resync();
     return result;
   };
-
-  api.pausePane = async (pane, paused) => {
-    const result = await original.pausePane(pane, paused);
-    if (result?.ok !== false) {
-      try { await api.syncV22State({ pause: { pane: Number(pane), paused: Boolean(paused) } }); } catch {}
-    }
+  api.pausePane = async (pane, shouldPause) => {
+    const result = await original.pausePane(pane, shouldPause);
+    if (result?.ok !== false && !shouldPause && latestHealth?.followingEnabled) await resync();
     return result;
   };
 
   api.navigate = async (value) => {
     const destination = String(value || '').trim() || 'relay://welcome';
     if (navigationPromise) return navigationPromise;
-
     navigationPromise = (async () => {
       const go = document.querySelector('#go');
       const previous = go?.textContent || 'Go';
@@ -192,25 +175,15 @@
         go.disabled = true;
         go.textContent = 'Opening…';
       }
-
       try {
         let result = await original.navigate(destination);
         if (result?.ok === false) {
-          await wait(240);
+          await wait(180);
           result = await original.navigate(destination);
         }
-        if (result?.ok === false && go) {
-          go.title = result.error || 'The address could not be opened.';
-          go.textContent = 'Try again';
-          await wait(650);
-        }
+        if (result?.ok !== false && latestHealth?.followingEnabled) setTimeout(resync, 80);
         return result;
       } catch (error) {
-        if (go) {
-          go.title = error?.message || String(error);
-          go.textContent = 'Try again';
-          await wait(650);
-        }
         return { ok: false, error: error?.message || String(error) };
       } finally {
         if (go) {
@@ -220,68 +193,88 @@
         navigationPromise = null;
       }
     })();
-
     return navigationPromise;
   };
 
   api.resetPane = async (pane) => {
-    try { await api.forgetPaneV22(Number(pane)); } catch {}
     const result = await original.resetPane(pane);
-    if (result?.ok !== false) await resyncBurst();
+    if (result?.ok !== false && latestHealth?.followingEnabled) await resync();
     return result;
   };
 
   api.setSettingsVisible = async (visible) => {
     const result = await original.setSettingsVisible(visible);
-    if (visible === false && result?.ok !== false && !initializing) {
-      setTimeout(() => resyncBurst(), 0);
+    if (visible === false && result?.ok !== false && !initializing && latestHealth?.followingEnabled) {
+      setTimeout(resync, 30);
     }
     return result;
   };
 
-  function patchPaneRows() {
+  api.checkIPs = async () => {
+    const result = await original.checkIPs();
+    const results = Array.isArray(result?.results) ? result.results : [];
+    const count = Number(latestState?.screenCount || results.length || 4);
+    const missing = Array.from({ length: count }, (_unused, index) => {
+      const route = results[index] || latestState?.ips?.[index];
+      const ip = String(route?.ip || '').trim();
+      return ip && ip !== 'Unavailable' ? null : index + 1;
+    }).filter(Boolean);
+    if (missing.length) {
+      const fallbacks = await api.checkIPFallbacksV25(missing).catch(() => []);
+      for (const item of Array.isArray(fallbacks) ? fallbacks : []) {
+        if (item?.ok && item.ip) fallbackIPs.set(Number(item.paneNumber), String(item.ip));
+      }
+    }
+    queuePatch();
+    return result;
+  };
+
+  function setText(element, value) {
+    if (element && element.textContent !== value) element.textContent = value;
+  }
+
+  function patchRows() {
     const list = document.querySelector('#topology-list');
     if (!list) return;
-
     list.querySelectorAll('.pane-number, .pane-index, button[data-action="focus"]').forEach((element) => element.remove());
     document.querySelector('#show-all-panes')?.remove();
-
     const rows = [...list.querySelectorAll('.pane-row, .pane-card')];
     for (const [index, row] of rows.entries()) {
       const paneNumber = Number(row.dataset.pane || index + 1);
       row.classList.add('pane-row-v24');
-
       const name = row.querySelector('.pane-name-input');
       if (name && document.activeElement !== name) name.value = normalizePaneName(name.value, paneNumber - 1);
-
-      const meta = row.querySelector('.pane-meta');
-      if (meta) meta.textContent = paneMeta(paneNumber);
-
-      const route = row.querySelector('.pane-route');
-      if (route) route.textContent = paneLocation(paneNumber);
+      setText(row.querySelector('.pane-meta'), paneMeta(paneNumber));
+      setText(row.querySelector('.pane-route'), paneLocation(paneNumber));
     }
+    const summary = document.querySelector('#topology-summary');
+    const followers = Math.max(0, Number(latestState?.screenCount || latestHealth?.visiblePaneCount || 1) - 1);
+    if (!latestHealth?.followingEnabled) setText(summary, `${followers} screens independent`);
+    else setText(summary, `${latestHealth?.caughtUpFollowers || 0}/${followers} synced`);
   }
 
-  function patchPaneLabels() {
+  function patchLabels() {
     const labels = [...document.querySelectorAll('#pane-labels .pane-label')];
     for (const [index, label] of labels.entries()) {
       const paneNumber = index + 1;
-      const title = label.querySelector('strong');
-      const detail = label.querySelector('span');
-      if (title) title.textContent = defaultPaneName(index);
-      if (detail) detail.textContent = paneMeta(paneNumber);
+      setText(label.querySelector('strong'), defaultPaneName(index));
+      setText(label.querySelector('span'), paneMeta(paneNumber));
     }
   }
 
-  function patchPaneUI() {
+  function patchUI() {
+    patchQueued = false;
+    document.querySelector('#close-settings')?.remove();
     const apply = document.querySelector('#apply-settings');
     if (apply) apply.textContent = 'Apply and close';
-    document.querySelector('#close-settings')?.remove();
-    patchPaneRows();
-    patchPaneLabels();
+    patchRows();
+    patchLabels();
+  }
 
-    const signature = `${latestState?.screenCount}|${latestState?.audioMode}|${JSON.stringify(latestState?.ips || [])}|${JSON.stringify(latestHealth || {})}`;
-    lastPaneMarkup = signature;
+  function queuePatch() {
+    if (patchQueued) return;
+    patchQueued = true;
+    requestAnimationFrame(patchUI);
   }
 
   function installDraftNote() {
@@ -296,51 +289,40 @@
   async function freshStart() {
     initializing = true;
     try { await original.setSettingsVisible(false); } catch {}
-    await verifiedPaneCount(4, false);
+    await verifiedPaneCount(4);
     await api.setZoom(0.8).catch(() => {});
     await api.setAudioMode('leader').catch(() => {});
-    await api.setPolicy(DEFAULT_POLICY).catch(() => {});
-    await api.setFollowing(false).catch(() => {});
+    await original.setPolicy(DEFAULT_POLICY).catch(() => {});
+    await original.setFollowing(false).catch(() => {});
     await api.focusPane(0).catch(() => {});
-
     for (let index = 0; index < 8; index += 1) {
       await api.setPaneLabel(index + 1, defaultPaneName(index)).catch(() => {});
     }
-
     await api.navigate('relay://welcome').catch(() => {});
-    try {
-      await api.syncV22State({ visibleCount: 4, following: false, policy: DEFAULT_POLICY });
-    } catch {}
-    await clearFollowerTargets();
-    await resyncBurst();
-
+    await resync();
     const quick = document.querySelector('#quick-pane-count');
     const setting = document.querySelector('#setting-pane-count');
     const zoom = document.querySelector('#setting-zoom');
     if (quick) quick.value = '4';
     if (setting) setting.value = '4';
     if (zoom) zoom.value = '0.8';
-
     initializing = false;
     setTimeout(() => document.querySelector('#open-settings')?.click(), 90);
   }
 
   window.addEventListener('DOMContentLoaded', async () => {
-    document.querySelector('#close-settings')?.remove();
     installDraftNote();
-
+    document.querySelector('#bookmark-checkmyip')?.addEventListener('click', () => api.navigate('https://myip.wtf'));
     const paneCount = document.querySelector('#setting-pane-count');
     paneCount?.addEventListener('change', () => {
       const summary = document.querySelector('#topology-summary');
       if (summary) summary.textContent = `${paneCount.value} screens selected · waiting for Apply and close`;
     }, true);
-
     const list = document.querySelector('#topology-list');
-    if (list) new MutationObserver(patchPaneRows).observe(list, { childList: true, subtree: true });
+    if (list) new MutationObserver(queuePatch).observe(list, { childList: true, subtree: true });
     const labels = document.querySelector('#pane-labels');
-    if (labels) new MutationObserver(patchPaneLabels).observe(labels, { childList: true, subtree: true });
-
+    if (labels) new MutationObserver(queuePatch).observe(labels, { childList: true, subtree: true });
     await freshStart();
-    patchPaneUI();
+    queuePatch();
   }, { once: true });
 })();
