@@ -53,9 +53,37 @@ test('safe control repair excludes protected fields and actions', () => {
   assert.match(preload, /delete\\s\*account/);
 });
 
-test('legacy renderer wrappers are inert', () => {
+test('legacy renderer wrappers do not own synchronization', () => {
   const v25 = read('src/renderer/bridge-v25.js');
   const ip = read('src/renderer/bridge-v25-ip.js');
   assert.doesNotMatch(v25, /configureSyncV25|resyncFollowersV25|onSyncQualityV25/);
   assert.doesNotMatch(ip, /checkIPs = async|MutationObserver/);
+});
+
+test('URL watchdog compares followers continuously and retries drift', () => {
+  const watchdog = read('src/main-v27-watchdog.js');
+  assert.match(watchdog, /setInterval\(checkFollowers, 450\)/);
+  assert.match(watchdog, /contents\.getURL\(\)/);
+  assert.match(watchdog, /actualURL === targetURL/);
+  assert.match(watchdog, /contents\.loadURL\(targetURL\)/);
+  assert.match(watchdog, /sync\.fullResync\(\)/);
+  assert.match(watchdog, /v27-recovery/);
+});
+
+test('recovery preload shows a blocking catch-up screen', () => {
+  const preload = read('src/page-preload-v27.js');
+  assert.match(preload, /conduit-recovery-v27/);
+  assert.match(preload, /Catching up/);
+  assert.match(preload, /v27-recovery/);
+  assert.match(preload, /pointer-events: auto/);
+});
+
+test('Select All works in page controls and through the native Edit menu', () => {
+  const preload = read('src/page-preload-v27.js');
+  const shell = read('src/main-v26-shell.js');
+  const bridge = read('src/renderer/bridge-v25.js');
+  assert.match(preload, /event\.metaKey \|\| event\.ctrlKey/);
+  assert.match(preload, /setSelectionRange/);
+  assert.match(shell, /role: 'selectAll'/);
+  assert.match(bridge, /address\.select\(\)/);
 });
