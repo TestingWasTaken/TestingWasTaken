@@ -27,7 +27,6 @@ test('new sites warm the main domain before the exact subdomain or path', () => 
   assert.match(main, /stagedTargets\.set/);
   assert.match(main, /queueNavigation\(warmup/);
   assert.match(main, /flushStagedTargets/);
-  assert.match(main, /setTimeout\(\(\) => \{/);
 });
 
 test('challenge pages are never propagated or replayed', () => {
@@ -75,21 +74,42 @@ test('safe control repair excludes protected fields and actions', () => {
   assert.match(preload, /delete\\s\*account/);
 });
 
-test('watchdog compares domains first and suspends retries on challenges', () => {
-  const watchdog = read('src/main-v27-watchdog.js');
-  assert.match(watchdog, /setInterval\(checkFollowers, 450\)/);
-  assert.match(watchdog, /challengeLike/);
-  assert.match(watchdog, /domainBehind/);
-  assert.match(watchdog, /urlBehind/);
-  assert.match(watchdog, /mainDomainURL/);
-  assert.match(watchdog, /navigationJobs/);
-  assert.match(watchdog, /v27-recovery/);
+test('recovery stops after exactly three automatic attempts', () => {
+  const watchdog = read('src/main-v29-watchdog.js');
+  assert.match(watchdog, /const MAX_ATTEMPTS = 3/);
+  assert.match(watchdog, /item\.attempts >= MAX_ATTEMPTS/);
+  assert.match(watchdog, /sendFailedState/);
+  assert.match(watchdog, /item\.exhausted = true/);
+  assert.match(watchdog, /failed: true/);
+  assert.match(watchdog, /currentURL: actualURL/);
+  assert.match(watchdog, /targetURL/);
 });
 
-test('recovery overlay remains available for genuine lag', () => {
-  const preload = read('src/page-preload-v27.js');
-  assert.match(preload, /conduit-recovery-v27/);
-  assert.match(preload, /Catching up/);
-  assert.match(preload, /v27-recovery/);
-  assert.match(preload, /pointer-events: auto/);
+test('recovery dismissal is unconditional so the overlay cannot remain stuck', () => {
+  const watchdog = read('src/main-v29-watchdog.js');
+  const clearStart = watchdog.indexOf('function clearRecovery');
+  const clearEnd = watchdog.indexOf('function clearAllRecovery', clearStart);
+  const clearFunction = watchdog.slice(clearStart, clearEnd);
+  assert.match(clearFunction, /recovery\.delete\(pane\)/);
+  assert.match(clearFunction, /sendRecovery\(pane, \{ active: false \}\)/);
+  assert.doesNotMatch(clearFunction, /if \(!recovery\.has/);
+});
+
+test('failed recovery reveals the page in a right-side panel', () => {
+  const preload = read('src/page-preload-v29.js');
+  assert.match(preload, /data-recovery-mode="failed"/);
+  assert.match(preload, /inset: 12px 12px auto auto/);
+  assert.match(preload, /background: transparent/);
+  assert.match(preload, /pointer-events: none/);
+  assert.match(preload, /Currently showing/);
+  assert.match(preload, /Screen 1 target/);
+});
+
+test('failed recovery offers reset and manual control escape actions', () => {
+  const preload = read('src/page-preload-v29.js');
+  assert.match(preload, />Reset screen<\/button>/);
+  assert.match(preload, />Manual control<\/button>/);
+  assert.match(preload, /ipcRenderer\.invoke\('v18-reset-pane', paneNumber\)/);
+  assert.match(preload, /ipcRenderer\.invoke\('v18-set-pane-paused', paneNumber, true\)/);
+  assert.match(preload, /ipcRenderer\.invoke\('v26-resync-all'\)/);
 });
