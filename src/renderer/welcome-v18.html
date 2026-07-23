@@ -3,76 +3,66 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Conduit home</title>
+  <title>Conduit welcome</title>
   <style>
-    :root { color-scheme: light; --paper:#f1efe7; --ink:#252822; --muted:#74766f; --line:#c8c5ba; --control:#ebe8df; --accent:#4d6756; }
+    :root { color-scheme: light; --paper:#f2f0e8; --ink:#262822; --muted:#74766f; --line:#c8c5ba; --control:#ebe8df; --accent:#4d6756; }
     * { box-sizing:border-box; }
     body { margin:0; background:var(--paper); color:var(--ink); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif; }
-    main { width:min(620px,calc(100% - 38px)); margin:42px auto 80px; }
-    header { display:flex; align-items:center; justify-content:space-between; padding-bottom:12px; border-bottom:1px solid var(--line); }
-    .wordmark { display:inline-flex; align-items:center; gap:9px; font-size:14px; font-weight:700; letter-spacing:-.02em; }
+    main { width:min(590px,calc(100% - 38px)); margin:38px auto 72px; }
+    .brand { display:flex; align-items:center; gap:9px; padding-bottom:13px; border-bottom:1px solid var(--line); font-weight:700; }
     .mark { position:relative; width:23px; height:15px; }
     .mark::before,.mark::after { content:""; position:absolute; top:2px; width:11px; height:8px; border:2px solid var(--accent); border-radius:5px; }
     .mark::before { left:0; transform:rotate(-7deg); }
     .mark::after { right:0; transform:rotate(7deg); }
-    header span:last-child { color:var(--muted); font-size:10px; }
-    h1 { max-width:520px; margin:42px 0 13px; font-size:clamp(34px,6vw,52px); line-height:1; letter-spacing:-.05em; font-weight:720; }
-    .intro { max-width:450px; margin:0; color:#5e6059; font-size:15px; }
-    section { margin-top:40px; padding-top:15px; border-top:1px solid var(--line); }
-    section h2 { margin:0 0 5px; font-size:13px; }
-    section p { margin:0 0 14px; color:var(--muted); font-size:11px; }
-    label { display:block; margin:12px 0 5px; font-size:12px; }
-    input[type="text"],select,button { height:36px; border:1px solid #b5b2a7; border-radius:3px; background:var(--control); color:var(--ink); font:inherit; }
-    input[type="text"] { width:100%; padding:0 10px; background:rgba(255,255,255,.34); }
-    .option-row { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:12px; color:var(--muted); font-size:11px; }
-    .option-row label { display:inline-flex; align-items:center; gap:6px; margin:0; }
-    select { padding:0 8px; }
-    .scroll-space { height:500px; margin:34px 0 18px 7px; padding-left:13px; border-left:1px solid var(--line); color:var(--muted); font-size:10px; }
-    .counter-row { display:flex; align-items:center; justify-content:flex-end; gap:9px; padding:13px 0; border-top:1px solid var(--line); }
-    .counter-row button { padding:0 13px; cursor:pointer; }
-    .counter-row strong { min-width:18px; text-align:right; }
-    footer { display:flex; justify-content:space-between; gap:15px; padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:10px; }
+    h1 { margin:34px 0 8px; font-size:28px; line-height:1.08; letter-spacing:-.035em; }
+    .intro { margin:0 0 34px; color:var(--muted); }
+    section { padding-top:16px; border-top:1px solid var(--line); }
+    h2 { margin:0 0 18px; font-size:15px; }
+    label { display:block; margin:13px 0 5px; font-size:12px; }
+    input[type="text"],select,button { height:35px; border:1px solid #b5b2a7; border-radius:3px; background:var(--control); color:var(--ink); font:inherit; }
+    input[type="text"] { width:100%; padding:0 10px; background:rgba(255,255,255,.35); }
+    .options { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:14px; }
+    .options label { display:inline-flex; align-items:center; gap:6px; margin:0; color:var(--muted); }
+    select,button { padding:0 10px; }
+    button { cursor:pointer; }
+    .count-row { display:flex; align-items:center; gap:9px; margin-top:18px; }
+    .count-row strong { min-width:20px; text-align:center; }
+    .scroll-space { height:560px; margin-top:34px; padding:14px 0 0 13px; border-left:1px solid var(--line); color:var(--muted); font-size:11px; }
+    footer { padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:10px; }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <div class="wordmark"><span class="mark" aria-hidden="true"></span><span>Conduit</span></div>
-      <span>local start page</span>
-    </header>
+    <div class="brand"><span class="mark" aria-hidden="true"></span><span>Conduit</span></div>
 
-    <h1>One pane leads.<br />The others keep up.</h1>
-    <p class="intro">Use Pane 1 to test navigation, typing, options, clicks, and scrolling across the other sessions.</p>
+    <h1>Hello, thank you for using Conduit!</h1>
+    <p class="intro">Use this page to check that the other panes follow the main screen.</p>
 
     <section>
-      <h2>Following test</h2>
-      <p>Turn on Follow Pane 1, then use the controls below.</p>
+      <h2>Alignment Test</h2>
 
       <label for="message">Text</label>
-      <input id="message" type="text" placeholder="Type something here" />
+      <input id="message" type="text" placeholder="Type here" />
 
-      <div class="option-row">
+      <div class="options">
         <label><input id="enabled" type="checkbox" /> Checkbox</label>
         <select id="choice" aria-label="Test option">
           <option>First option</option>
           <option>Second option</option>
           <option>Third option</option>
         </select>
+        <button id="test-button">Button</button>
+      </div>
+
+      <div class="count-row">
+        <span>Count</span>
+        <strong id="count">0</strong>
+        <button id="increment">+1</button>
       </div>
     </section>
 
-    <div class="scroll-space">Scroll down to check follower movement.</div>
-
-    <div class="counter-row">
-      <span>Count</span>
-      <strong id="count">0</strong>
-      <button id="increment">+1</button>
-    </div>
-
-    <footer>
-      <span>⌘1–8 focuses a pane</span>
-      <span>⌘, opens Settings</span>
-    </footer>
+    <div class="scroll-space">Scroll down to test alignment.</div>
+    <footer>Conduit local welcome page</footer>
   </main>
 
   <script>
