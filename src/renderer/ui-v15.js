@@ -10,7 +10,9 @@
   let latestState = null;
   let ledgerBusy = false;
   let ledgerScheduled = false;
+  let ledgerObserver = null;
   let committingHidden = false;
+  let exitInProgress = false;
   let exitTimer = null;
   const geoCache = new Map();
   const geoRequests = new Set();
@@ -111,10 +113,20 @@
     return row;
   }
 
+  function observeLedger() {
+    if (!ledgerObserver || !eventStream) return;
+    ledgerObserver.observe(eventStream, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  }
+
   function processLedger() {
     ledgerScheduled = false;
     if (!eventStream || ledgerBusy) return;
     ledgerBusy = true;
+    ledgerObserver?.disconnect();
 
     try {
       eventStream.querySelectorAll('.conduit-egress-row').forEach((row) => row.remove());
@@ -161,6 +173,7 @@
       eventStream.scrollTop = eventStream.scrollHeight;
     } finally {
       ledgerBusy = false;
+      observeLedger();
     }
   }
 
@@ -171,7 +184,7 @@
   }
 
   function playEntrance() {
-    if (!backdrop || backdrop.classList.contains('hidden')) return;
+    if (!backdrop || backdrop.classList.contains('hidden') || exitInProgress) return;
     clearTimeout(exitTimer);
     backdrop.classList.remove('conduit-exiting');
     backdrop.classList.remove('conduit-entering');
@@ -181,7 +194,8 @@
   }
 
   function playExit() {
-    if (!backdrop || committingHidden) return;
+    if (!backdrop || committingHidden || exitInProgress) return;
+    exitInProgress = true;
     clearTimeout(exitTimer);
     backdrop.classList.remove('hidden', 'conduit-entering');
     backdrop.classList.add('conduit-exiting');
@@ -190,7 +204,10 @@
       committingHidden = true;
       backdrop.classList.add('hidden');
       backdrop.classList.remove('conduit-exiting');
-      requestAnimationFrame(() => { committingHidden = false; });
+      requestAnimationFrame(() => {
+        committingHidden = false;
+        exitInProgress = false;
+      });
     }, 470);
   }
 
@@ -200,16 +217,13 @@
   }
 
   if (eventStream) {
-    new MutationObserver(scheduleLedgerPass).observe(eventStream, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
+    ledgerObserver = new MutationObserver(scheduleLedgerPass);
+    observeLedger();
   }
 
   if (backdrop) {
     new MutationObserver(() => {
-      if (committingHidden) return;
+      if (committingHidden || exitInProgress) return;
       if (backdrop.classList.contains('hidden')) playExit();
       else playEntrance();
     }).observe(backdrop, { attributes: true, attributeFilter: ['class'] });
