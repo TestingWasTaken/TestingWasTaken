@@ -1,9 +1,9 @@
-name: Conduit 0.20 checks
+name: Conduit 0.21 checks
 
 on:
   push:
     branches:
-      - conduit-v0.20-build
+      - conduit-v0.21-build
   workflow_dispatch:
 
 jobs:
