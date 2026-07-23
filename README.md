@@ -1,20 +1,18 @@
-# Conduit 0.21
+# Conduit 0.22
 
-Conduit is a one-to-eight-pane Electron browser for repeating ordinary browsing work across isolated sessions. Pane 1 can lead navigation, scrolling, typing, and clicks while followers keep separate cookies, storage, cache, and optional route identities.
+Conduit is a one-to-eight-pane Electron browser for repeating ordinary browsing work across isolated sessions. The main screen can lead navigation, scrolling, typing, and clicks while followers keep separate cookies, storage, cache, and optional route identities.
 
 ## What changed
 
-- Restored the older paper-style `relay://home` page and added the Conduit mark.
-- Lightened the dark interface into a translucent graphite-glass palette.
-- Kept the Conduit wordmark upright rather than italic.
-- Added a startup screen that waits for the four initial panes, then opens Settings automatically.
-- Added a dedicated connection screen for Standard and Multiple IPs route changes.
-- Renamed connection modes to Standard and Multiple IPs.
-- Added a ten-second location-provider timeout with a second provider and an IP-only fallback.
-- Rebuilt pane reset so the browser view is recreated and re-registers with the following coordinator.
-- Added lazy pane creation: only four panes start at launch; panes 5–8 are created when selected.
-- Throttled pane-health rendering and reduced registration chatter.
-- Kept adjustable scale, Pane 1 following, sound routing, IP/location details, and per-pane reset/focus/pause controls.
+- Restored low-latency scroll following through a dedicated animation-frame channel.
+- Added an explicit follower handshake after Settings closes and after a pane reset.
+- Added a retry and visible state to the Go button when the workspace is briefly busy.
+- Simplified the pane section to names, status, Pause, and Reset.
+- Removed numeric pane tiles and the Focus button from Settings.
+- Renamed the default visible labels to Main screen and Follower A–G.
+- Changed missing location text to `IP swapped · location unavailable` while retaining the IP address.
+- Rebuilt `relay://home` as a simple Conduit alignment test with text, checkbox, options, a button, count, and scrolling.
+- Kept the translucent graphite interface, four-pane startup, adjustable scale, Standard and Multiple IPs modes, sound routing, and route checks.
 
 ## Install on macOS
 
