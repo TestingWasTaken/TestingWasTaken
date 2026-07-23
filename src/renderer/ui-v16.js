@@ -89,6 +89,16 @@
     syncResetButtons();
   });
 
+  // Older renderer code refreshes ad-filter status every few seconds and can
+  // reapply the previous pane count to reset buttons. Keep the visible Settings
+  // choice authoritative until Apply is pressed.
+  window.setInterval(() => {
+    if (backdrop && !backdrop.classList.contains('hidden')) {
+      syncSettingsHeader();
+      syncResetButtons();
+    }
+  }, 300);
+
   syncSettingsHeader();
   syncResetButtons();
 })();
