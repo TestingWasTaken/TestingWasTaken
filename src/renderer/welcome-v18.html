@@ -67,6 +67,12 @@
 
   <script>
     let count = 0;
+    const testButton = document.querySelector('#test-button');
+    testButton.addEventListener('click', () => {
+      const pressed = testButton.dataset.pressed !== 'true';
+      testButton.dataset.pressed = String(pressed);
+      testButton.textContent = pressed ? 'Pressed' : 'Button';
+    });
     document.querySelector('#increment').addEventListener('click', () => {
       count += 1;
       document.querySelector('#count').textContent = String(count);
