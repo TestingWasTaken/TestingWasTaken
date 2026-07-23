@@ -2,6 +2,7 @@
 
 (() => {
   const backdrop = document.querySelector('#setup-backdrop');
+  const dialog = document.querySelector('#setup-dialog');
   const eventStream = document.querySelector('#event-stream');
   const quickCount = document.querySelector('#quick-screen-count');
   const setupCount = document.querySelector('#setup-screen-count');
@@ -210,6 +211,14 @@
     }, 470);
   }
 
+  function playOperationEntrance() {
+    if (!dialog) return;
+    dialog.classList.remove('conduit-operation-enter');
+    void dialog.offsetWidth;
+    dialog.classList.add('conduit-operation-enter');
+    setTimeout(() => dialog.classList.remove('conduit-operation-enter'), 860);
+  }
+
   function updatePerformanceState() {
     const selected = Math.max(Number(quickCount?.value || 0), Number(setupCount?.value || 0));
     document.documentElement.classList.toggle('conduit-high-load', selected > 4);
@@ -236,6 +245,14 @@
       attributeFilter: ['class'],
     });
   }
+
+  document.addEventListener('click', (event) => {
+    const trigger = event.target instanceof Element
+      ? event.target.closest('#setup-launch, #restart-all, .screen-reset-button')
+      : null;
+    if (!trigger) return;
+    setTimeout(playOperationEntrance, 0);
+  }, true);
 
   quickCount?.addEventListener('change', updatePerformanceState);
   setupCount?.addEventListener('change', updatePerformanceState);
