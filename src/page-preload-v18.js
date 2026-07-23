@@ -1,3 +1,3 @@
 'use strict';
 
-require('./page-preload-v28');
+require('./page-preload-v29');
