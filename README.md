@@ -1,17 +1,16 @@
-# Conduit 0.16
+# Conduit 0.17
 
-Conduit is a linked one-to-eight-pane Electron browser. Pane 1 can lead supported activity across the remaining panes, while each pane keeps an isolated browser session and can optionally use an isolated network route.
+Conduit is a linked one-to-eight-pane Electron browser. Pane 1 can lead supported activity across visible follower panes, while every pane keeps an isolated browser session and may optionally use an isolated route.
 
-## What changed in 0.16
+## What changed in 0.17
 
-- Made all eight pane choices and reset controls native to the interface instead of injecting panes 5–8 after startup.
-- Fixed the Settings footer so Apply settings remains fully visible at every supported window size.
-- Added four persistent interface palettes: Mineral, Graphite, Dune, and Moss.
-- Changed the Settings heading from Workspace to Settings.
-- Replaced the dramatic blur/zoom transition with a shorter fade-and-slide motion.
-- Increased scroll sampling frequency and moved follower scrolling onto a continuous local animation loop.
-- Added “Made with ♥ by Jujhar” with a secure external link to the author’s GitHub profile.
-- Kept the 3×2 and 4×2 workspace matrices for five to eight panes, with a performance warning for heavier layouts.
+- Fixed the remaining four-pane preload limit, so panes 5–8 now register with the same synchronization engine as panes 1–4.
+- Added an eight-pane-aware preload without replacing the working click, input, navigation, and safety logic.
+- Replaced the older follower scroll jumps with a slower continuous easing loop.
+- Made 80% the starting page scale and automatically selects it when five to eight panes are chosen.
+- Replaced the large 01–05 number tiles with smaller functional glyphs.
+- Rebuilt `relay://welcome` as a quiet local test page with restrained, slightly irregular hand-tuned spacing.
+- Preserved the four interface palettes, native pane reset controls, fixed Settings footer, isolated routes, and beta ad filter.
 
 ## Install on macOS
 
@@ -28,14 +27,14 @@ After dependencies are installed, you can also double-click `Start Conduit.comma
 ## Toolbar controls
 
 - **Panes:** choose one to eight panes.
-- **Zoom:** change the shared page scale.
+- **Zoom:** change the shared page scale. Dense layouts begin at 80%.
 - **Route:** switch between the standard route and isolated per-pane identities.
 - **Follow pane 1:** enable or disable linked activity.
 - **Ad filter:** enable or disable the beta advertising and tracker request filter.
 
 ## Pane linking
 
-When **Follow pane 1** is enabled, Conduit mirrors supported clicks, typing, selections, navigation, and scrolling from Pane 1 to visible follower panes. Window scrolling is sampled continuously and each follower eases toward the newest controller position.
+When **Follow pane 1** is enabled, Conduit mirrors supported clicks, typing, selections, navigation, and scrolling from Pane 1 to all visible follower panes, including panes 5–8.
 
 CAPTCHA and security-challenge interfaces are not mirrored. Password fields, file uploads, payments, purchases, votes, account deletion, and similar sensitive actions are excluded.
 
