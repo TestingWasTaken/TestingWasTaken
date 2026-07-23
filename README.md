@@ -1,17 +1,17 @@
-# Relay Browser 0.11
+# Conduit 0.14
 
-Relay opens one to four isolated Electron browser screens with Screen 1 as the controller, optional ad blocking, concise status diagnostics, guarded synchronization, and optional private routed connections.
+Conduit is a linked multi-pane Electron browser. Pane 1 can lead supported activity across the remaining panes, while each pane keeps an isolated browser session and can optionally use an isolated network route.
 
-## What changed in 0.11
+## What changed in 0.14
 
-- Screen 1 is now the authoritative controller for clicks, typing, navigation, and scroll position.
-- Follower screens automatically catch up when one remains on the previous page or at the wrong scroll position.
-- Security-challenge detection remains active for safety, but challenge warnings no longer appear in the toolbar or Settings console.
-- A challenged screen is silently skipped instead of freezing synchronization for every screen.
-- The Settings console now keeps only a short list of human-readable states such as **Connecting**, **Connected**, **Ready**, and **Connection error**.
-- Ad and tracker protection can now be disabled from Settings.
-- Turning protection off shows a compatibility warning because some websites may refresh, interrupt the page, or sign the user out.
-- Individual screen reset, Restart everything, visible progress, private connections, and the bounded Tor bridge remain included.
+- Renamed the application from Relay to **Conduit**.
+- Replaced the static toolbar summary with live controls for pane count, page scale, routing, pane linking, and request filtering.
+- Toolbar changes use the same locked apply workflow as the full settings sheet.
+- Rebuilt Settings as a compact translucent macOS-style sheet.
+- Removed the large controller explanation and routing-install paragraph from the interface.
+- Replaced the generic connection console with a compact session trace.
+- Trace rows include short event hashes and concrete layout, route, verification, filter, and linking results.
+- Preserved the synchronization, reset, routing, and bounded-memory bridge behavior from the 0.12 engine.
 
 ## Install on macOS
 
@@ -23,27 +23,24 @@ npm run check
 npm start
 ```
 
-You can also double-click `Start Relay.command` after dependencies have been installed.
+After dependencies are installed, you can also double-click `Start Conduit.command`.
 
-## Screen 1 control
+## Toolbar controls
 
-When **Screen 1 controls followers** is enabled, Relay mirrors supported activity from Screen 1 to Screens 2–4. It also sends an authoritative page URL and proportional scroll position so follower screens can recover after delayed loads or route mismatches.
+- **Panes:** choose one to four panes.
+- **Zoom:** change the shared page scale.
+- **Route:** switch between the standard route and isolated per-pane identities.
+- **Follow pane 1:** enable or disable linked activity.
+- **Filter:** enable or disable the built-in advertising and tracker request filter.
 
-CAPTCHA and security-challenge interfaces are never mirrored. Password fields, file uploads, payments, purchases, votes, account deletion, and similar sensitive actions are also excluded.
+Each change opens the progress sheet, applies the complete configuration, and returns browser access only after the operation finishes.
 
-## Ad and tracker protection
+## Pane linking
 
-Protection starts enabled. Settings shows the blocked-request count and includes a switch to turn protection off for websites that reject blockers. The filter is session-level and applies to new requests immediately.
+When **Follow pane 1** is enabled, Conduit mirrors supported clicks, typing, selections, navigation, and proportional scrolling from Pane 1 to the visible follower panes.
 
-This is a built-in network filter rather than a browser extension. It blocks many common advertising and tracking requests, but cannot guarantee that every advertisement will be removed.
+CAPTCHA and security-challenge interfaces are not mirrored. Password fields, file uploads, payments, purchases, votes, account deletion, and similar sensitive actions are excluded.
 
-## Multiple private connections
+## Isolated routes
 
-Relay does not start the private routing service itself. Install and start Tor before applying **Multiple private connections**:
-
-```bash
-brew install tor
-brew services start tor
-```
-
-Alternatively, open Tor Browser and leave it running. Relay checks local SOCKS ports 9050 and 9150. Separate identities do not guarantee different exit IP addresses, so use **Verify public connections** as the source of truth.
+The isolated route option connects to a compatible local SOCKS service on port 9050 or 9150. Conduit does not launch that service itself. Separate route identities do not guarantee different public exit addresses, so route verification remains available in Settings.
