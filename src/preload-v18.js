@@ -39,6 +39,10 @@ contextBridge.exposeInMainWorld('conduit', {
   clearScrollTargets: () => ipcRenderer.invoke('v24-clear-scroll-targets'),
   requestPaneStates: () => ipcRenderer.invoke('v24-request-pane-states'),
 
+  configureSyncV25: (state) => ipcRenderer.invoke('v25-configure-sync', state),
+  resyncFollowersV25: () => ipcRenderer.invoke('v25-resync-followers'),
+  getSyncQualityV25: () => ipcRenderer.invoke('v25-get-sync-quality'),
+
   getAdBlock: () => ipcRenderer.invoke('v18-get-adblock'),
   setAdBlock: (enabled) => ipcRenderer.invoke('v18-set-adblock', enabled),
   openExternal: (url) => ipcRenderer.invoke('v18-open-external', url),
@@ -50,5 +54,6 @@ contextBridge.exposeInMainWorld('conduit', {
   onLayout: (callback) => ipcRenderer.on('layout-state-v18', (_event, state) => callback(state)),
   onProgress: (callback) => ipcRenderer.on('operation-progress-v18', (_event, progress) => callback(progress)),
   onHealth: (callback) => ipcRenderer.on('pane-health-v18', (_event, health) => callback(health)),
+  onSyncQualityV25: (callback) => ipcRenderer.on('sync-quality-v25', (_event, quality) => callback(quality)),
   onMenuCommand: (callback) => ipcRenderer.on('menu-command-v18', (_event, command) => callback(command)),
 });
