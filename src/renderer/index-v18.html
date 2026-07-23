@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Conduit</title>
-  <link rel="stylesheet" href="styles-v22.css" />
+  <link rel="stylesheet" href="styles-v24.css" />
 </head>
 <body>
   <div id="boot-screen" class="full-screen boot-screen" role="status" aria-live="polite">
@@ -150,11 +150,11 @@
           <section class="settings-section">
             <header>
               <h2>Following</h2>
-              <p>Pane 1 leads. Choose what the other panes copy.</p>
+              <p>Screen 1 leads. Choose what the other screens copy.</p>
             </header>
             <label class="check-row master">
               <input id="setting-follow" type="checkbox" />
-              <span><strong>Follow Pane 1</strong><small>Select or clear every option below.</small></span>
+              <span><strong>Follow Screen 1</strong><small>Select or clear every option below.</small></span>
             </label>
             <div class="policy-grid">
               <label><input id="policy-navigation" type="checkbox" /> Navigation</label>
@@ -167,8 +167,8 @@
           <section class="settings-section pane-controls-section">
             <header class="section-header-row">
               <div>
-                <h2>Panes</h2>
-                <p id="topology-summary">Starting panes…</p>
+                <h2>Screens</h2>
+                <p id="topology-summary">Starting screens…</p>
               </div>
               <button id="show-all-panes" class="quiet-button">Show all</button>
             </header>
@@ -185,7 +185,7 @@
               <span><strong>Ad filter</strong><small>Turn it off when a site blocks sign-in, video, or checkout.</small></span>
             </label>
             <div class="inline-actions">
-              <button id="restart-all" class="danger-button">Reset every pane</button>
+              <button id="restart-all" class="danger-button">Reset every screen</button>
               <span id="last-reset">No reset this session</span>
             </div>
           </section>
@@ -202,13 +202,13 @@
         </div>
         <div class="footer-actions">
           <button id="cancel-settings" class="quiet-button">Cancel</button>
-          <button id="apply-settings" class="primary-button">Apply changes</button>
+          <button id="apply-settings" class="primary-button">Apply and close</button>
         </div>
       </footer>
     </section>
   </div>
 
-  <script src="bridge-v22.js"></script>
+  <script src="bridge-v24.js"></script>
   <script src="app-v21.js"></script>
 </body>
 </html>
