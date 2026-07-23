@@ -1,14 +1,16 @@
-# Conduit 0.25.1
+# Conduit 0.26
 
 Conduit is a one-to-eight-screen Electron browser for repeating ordinary browsing work across isolated sessions. Screen 1 can lead navigation, scrolling, typing, and clicks while followers keep separate cookies, storage, cache, and optional route identities.
 
 ## What changed
 
-- Fixed a race where an older Following-off health update could cancel a newly enabled Follow Screen 1 request.
-- Enabling Following now keeps the requested state protected while the old and heartbeat coordinators confirm it, then runs a follower resynchronization burst.
-- Added a `checkmyip` toolbar bookmark that opens `https://myip.wtf`.
-- Removed the “Conduit local welcome page” footer.
-- Kept the 350 ms recovery heartbeat, measured synchronization percentages, fast frame-sampled scrolling, numeric IP fallback, and every other 0.25 interface behavior unchanged.
+- Replaced the overlapping v18, v22, v24, and v25 synchronization paths with one authoritative v26 coordinator.
+- Every browser screen now uses one v26 preload contract for registration, navigation, scroll, controls, snapshots, and health acknowledgements.
+- Follow Screen 1 now has one source of truth for enabled state, policy, paused screens, and visible screen count.
+- URL changes, frame-sampled scrolling, clicks, typing, checkboxes, menus, and safe form controls all use the same coordinator.
+- Resetting a screen or closing Settings runs the same full resynchronization path.
+- The numeric IP fallback now registers through the v26 pane channels.
+- Kept the existing translucent interface, clean four-screen start, 80% scale, checkmyip bookmark, and welcome page.
 
 ## Install on macOS
 
@@ -32,9 +34,9 @@ After dependencies are installed, `Start Conduit.command` can also be used.
 
 ## Connection modes
 
-**Standard** uses the Mac's normal connection.
+**Standard** uses the Mac's normal connection. A device-wide VPN can be used with Standard, but every screen normally receives the same VPN exit IP.
 
-**Multiple IPs** connects each visible screen through a compatible local private-route service. If that service is unavailable, Conduit restores Standard and keeps Settings open with the error.
+**Multiple IPs** currently uses the local private-route service. A faster future replacement is a user-supplied HTTP or SOCKS proxy pool, with one proxy assigned to each Electron session.
 
 ## Safety
 
