@@ -20,11 +20,17 @@
   let latestQuality = null;
   let currentPolicy = { navigation: false, scrolling: false, typing: false, clicks: false };
   let currentFollowing = false;
+  let desiredFollowing = false;
+  let followGuardUntil = 0;
   let patchQueued = false;
   let lastConfiguration = '';
 
   function anyPolicy(policy = {}) {
     return Object.values(policy).some(Boolean);
+  }
+
+  function effectiveFollowing() {
+    return Date.now() < followGuardUntil ? desiredFollowing : currentFollowing;
   }
 
   function normalizeRoute(route) {
@@ -53,7 +59,7 @@
   function configure(extra = {}) {
     const payload = {
       visibleCount: Number(latestState?.screenCount || latestHealth?.visiblePaneCount || 4),
-      enabled: currentFollowing && anyPolicy(currentPolicy),
+      enabled: effectiveFollowing() && anyPolicy(currentPolicy),
       policy: { ...currentPolicy },
       ...extra,
     };
@@ -77,12 +83,26 @@
 
   api.onHealth = (callback) => original.onHealth((health) => {
     latestHealth = health;
-    currentFollowing = Boolean(health?.followingEnabled);
-    if (currentFollowing && health?.policy) {
-      currentPolicy = { ...currentPolicy, ...health.policy };
+    const reportedFollowing = Boolean(health?.followingEnabled);
+    const guardActive = Date.now() < followGuardUntil;
+
+    if (guardActive && reportedFollowing !== desiredFollowing) {
+      currentFollowing = desiredFollowing;
+    } else {
+      currentFollowing = reportedFollowing;
+      desiredFollowing = reportedFollowing;
+      if (reportedFollowing && health?.policy) {
+        currentPolicy = { ...currentPolicy, ...health.policy };
+      }
     }
-    callback(health);
-    configure();
+
+    const shownFollowing = effectiveFollowing();
+    callback({
+      ...health,
+      followingEnabled: shownFollowing,
+      policy: shownFollowing ? { ...currentPolicy } : health?.policy,
+    });
+    configure({ enabled: shownFollowing && anyPolicy(currentPolicy) });
     queuePatch();
   });
 
@@ -102,16 +122,35 @@
     const result = await original.setPolicy(currentPolicy);
     lastConfiguration = '';
     await configure();
-    if (currentFollowing && anyPolicy(currentPolicy)) await api.resyncFollowersV25().catch(() => {});
+    if (effectiveFollowing() && anyPolicy(currentPolicy)) await api.resyncFollowersV25().catch(() => {});
     return result;
   };
 
   api.setFollowing = async (enabled) => {
-    currentFollowing = Boolean(enabled) && anyPolicy(currentPolicy);
+    const requested = Boolean(enabled) && anyPolicy(currentPolicy);
+    desiredFollowing = requested;
+    currentFollowing = requested;
+    followGuardUntil = Date.now() + 2200;
     lastConfiguration = '';
-    await configure({ enabled: currentFollowing });
-    const result = await original.setFollowing(currentFollowing);
-    if (currentFollowing) await api.resyncFollowersV25().catch(() => {});
+
+    await configure({ enabled: requested });
+    const result = await original.setFollowing(requested);
+    const confirmed = result?.ok === false
+      ? false
+      : typeof result?.enabled === 'boolean'
+        ? result.enabled
+        : requested;
+
+    if (confirmed !== requested) {
+      desiredFollowing = confirmed;
+      currentFollowing = confirmed;
+      followGuardUntil = Date.now() + 500;
+      lastConfiguration = '';
+      await configure({ enabled: confirmed });
+    } else if (requested) {
+      await api.resyncFollowersV25().catch(() => {});
+    }
+
     queuePatch();
     return result;
   };
@@ -120,7 +159,7 @@
     const result = await original.pausePane(pane, paused);
     await configure({ pause: { pane: Number(pane), paused: Boolean(paused) } });
     lastConfiguration = '';
-    if (!paused && currentFollowing) await api.resyncFollowersV25().catch(() => {});
+    if (!paused && effectiveFollowing()) await api.resyncFollowersV25().catch(() => {});
     return result;
   };
 
@@ -170,7 +209,7 @@
     if (paneNumber === 1) return 'Screen 1 leads';
     const healthRow = latestHealth?.rows?.find((row) => row.paneNumber === paneNumber);
     if (healthRow?.paused) return 'Paused';
-    if (!currentFollowing) return 'Independent';
+    if (!effectiveFollowing()) return 'Independent';
     const row = qualityForPane(paneNumber);
     if (!row) return 'Connecting sync';
     if (row.status === 'Synced') return `Synced ${row.score}%`;
@@ -202,7 +241,7 @@
 
     const summary = document.querySelector('#topology-summary');
     const followerCount = Math.max(0, Number(latestState?.screenCount || latestHealth?.visiblePaneCount || 1) - 1);
-    if (!currentFollowing) {
+    if (!effectiveFollowing()) {
       setText(summary, `${followerCount} screens independent`);
     } else if (latestQuality) {
       const average = Number.isFinite(latestQuality.average) ? `${latestQuality.average}% average` : 'measuring sync';
@@ -235,6 +274,10 @@
   });
 
   window.addEventListener('DOMContentLoaded', () => {
+    document.querySelector('#bookmark-checkmyip')?.addEventListener('click', () => {
+      api.navigate('https://myip.wtf');
+    });
+
     const topology = document.querySelector('#topology-list');
     if (topology) new MutationObserver(queuePatch).observe(topology, { childList: true, subtree: true });
     const labels = document.querySelector('#pane-labels');
