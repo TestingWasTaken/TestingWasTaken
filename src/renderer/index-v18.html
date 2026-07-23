@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-appearance="system">
+<html lang="en" data-appearance="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -9,7 +9,7 @@
 <body>
   <header class="toolbar">
     <div class="toolbar-main">
-      <a class="brand" href="relay://welcome" id="home-link" aria-label="Open Conduit home">
+      <a class="brand" href="relay://home" id="home-link" aria-label="Open Conduit home">
         <span class="brand-mark" aria-hidden="true"></span><strong>Conduit</strong>
       </a>
       <div class="nav-buttons" aria-label="Navigation">
@@ -17,7 +17,7 @@
         <button id="forward" aria-label="Forward">→</button>
         <button id="reload" aria-label="Reload active pane">↻</button>
       </div>
-      <form id="address-form"><input id="address" value="relay://welcome" aria-label="Address or search" autocomplete="off" spellcheck="false" /></form>
+      <form id="address-form"><input id="address" value="relay://home" aria-label="Address or search" autocomplete="off" spellcheck="false" /></form>
       <label class="toolbar-select"><span>Panes</span><select id="quick-pane-count">
         <option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option>
       </select></label>
@@ -39,7 +39,7 @@
     <section class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <header class="settings-header">
         <div><h1 id="settings-title">Settings</h1><p>Workspace, connection, following, and privacy.</p></div>
-        <button id="close-settings" class="icon-button" aria-label="Close settings">×</button>
+        <button id="close-settings" class="done-button">Done</button>
       </header>
 
       <div id="operation-strip" class="operation-strip" hidden>
@@ -59,7 +59,7 @@
               <label><span>Page scale</span><select id="setting-zoom">
                 <option value="0.5">50%</option><option value="0.67">67%</option><option value="0.8">80% — recommended</option><option value="0.9">90%</option><option value="1">100%</option><option value="1.1">110%</option><option value="1.25">125%</option><option value="1.5">150%</option>
               </select></label>
-              <label><span>Appearance</span><select id="setting-appearance"><option value="system">Follow macOS</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+              <label><span>Appearance</span><select id="setting-appearance"><option value="light">Light</option><option value="dark">Dark</option></select></label>
               <label><span>Saved workspace</span><select id="preset-select"><option value="">Choose a preset…</option></select></label>
             </div>
             <div class="inline-actions"><button id="save-preset">Save current preset</button><button id="delete-preset" class="quiet-button">Delete selected</button></div>
@@ -86,18 +86,18 @@
             </div>
           </section>
 
+          <section class="settings-section pane-controls-section">
+            <header class="section-header-row"><div><h2>Panes</h2><p id="topology-summary">Waiting for panes…</p></div><button id="show-all-panes" class="quiet-button">Show all</button></header>
+            <div id="topology-list" class="topology-list"></div>
+            <p class="topology-note">Pause a follower without closing its session, or focus one pane temporarily.</p>
+          </section>
+
           <section class="settings-section">
-            <header><h2>Privacy</h2><p>Filtering and session cleanup.</p></header>
-            <label class="check-row"><input id="ad-filter" type="checkbox" checked /><span><strong>Ad filter</strong><small>Beta. Some sign-in, video, or checkout pages may work better with it off.</small></span></label>
+            <header><h2>Privacy <span class="beta-tag">[BETA]</span></h2><p>Filtering and session cleanup.</p></header>
+            <label class="check-row"><input id="ad-filter" type="checkbox" checked /><span><strong>Ad filter</strong><small>Some sign-in, video, or checkout pages may work better with it off.</small></span></label>
             <div class="inline-actions"><button id="restart-all" class="danger-button">Reset every pane</button><span id="last-reset">No reset this session</span></div>
           </section>
         </main>
-
-        <aside class="topology-panel">
-          <header><div><h2>Pane map</h2><p id="topology-summary">Waiting for panes…</p></div><button id="show-all-panes" class="quiet-button">Show all</button></header>
-          <div id="topology-list" class="topology-list"></div>
-          <p class="topology-note">A paused follower keeps its session open but stops receiving movement and actions.</p>
-        </aside>
       </div>
 
       <footer class="settings-footer">
