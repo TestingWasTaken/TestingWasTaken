@@ -1,8 +1,8 @@
 {
   "name": "conduit-browser",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "private": true,
-  "description": "A translucent multi-screen Electron browser with heartbeat follower repair, measurable sync quality, numeric IP fallbacks, draft-only settings, and independent scrolling when following is off.",
+  "description": "A translucent multi-screen Electron browser with a Follow Screen 1 race fix, heartbeat follower repair, measurable sync quality, numeric IP fallbacks, and a checkmyip bookmark.",
   "main": "src/main-entry-v25.js",
   "scripts": {
     "start": "electron .",
