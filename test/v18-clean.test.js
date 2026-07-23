@@ -26,12 +26,14 @@ test('workspace defaults to the recommended 80 percent scale', () => {
   assert.match(source, /let zoomFactor = 0\.8/);
 });
 
-test('renderer has one active stylesheet and one active script', () => {
+test('renderer uses one design system and two focused scripts', () => {
   const html = read('src/renderer/index-v18.html');
   assert.equal((html.match(/<link rel="stylesheet"/g) || []).length, 1);
-  assert.equal((html.match(/<script src=/g) || []).length, 1);
+  assert.equal((html.match(/<script src=/g) || []).length, 2);
   assert.match(html, /styles-v18\.css/);
+  assert.match(html, /state-guard-v18\.js/);
   assert.match(html, /app-v18\.js/);
+  assert.doesNotMatch(html, /styles-v1[1-7]|ui-v1[4-7]|app-v11/);
 });
 
 test('selective following and pane controls are exposed', () => {
