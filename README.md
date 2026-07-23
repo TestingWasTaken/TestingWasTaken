@@ -1,16 +1,16 @@
-# Conduit 0.27
+# Conduit 0.28
 
 Conduit is a one-to-eight-screen Electron browser for repeating ordinary browsing work across isolated sessions. Screen 1 can lead navigation, scrolling, typing, and clicks while followers keep separate cookies, storage, cache, and optional route identities.
 
 ## What changed
 
-- Added a 450 ms URL watchdog that continuously compares every active follower with Screen 1.
-- A follower that remains behind enters a temporary Catching up screen, retries the Screen 1 address with increasing delays, and exits recovery automatically when the URLs match.
-- Kept the single v26 synchronization coordinator; the watchdog repairs drift without owning Follow state.
-- Added native Edit-menu commands and explicit Control/Command+A handling inside pane pages and the address field.
-- The checkmyip bookmark now opens `https://browserleaks.com/ip`.
-- Added `[BETA]` beside IP address and location checking.
-- Kept the translucent interface, clean four-screen start, 80% scale, numeric IP fallback, and welcome page.
+- New sites now open in two stages: the main registrable domain first, then the exact subdomain, path, query, or hash.
+- Followers that finish the main-domain stage together receive the exact Screen 1 address in the same navigation batch.
+- CAPTCHA, Cloudflare challenge, browser-check, and human-verification pages are excluded from automatic navigation retries.
+- A challenge on Screen 1 is never propagated to followers.
+- A challenge on one follower does not hold back the other followers; that screen rejoins synchronization after the challenge clears.
+- The 450 ms watchdog still repairs genuine URL or state drift, but it releases the recovery overlay on verification pages instead of remaining stuck on Connecting.
+- Kept the single synchronization coordinator, translucent interface, clean four-screen start, BrowserLeaks bookmark, Select All support, and numeric IP fallback.
 
 ## Install on macOS
 
@@ -40,4 +40,4 @@ After dependencies are installed, `Start Conduit.command` can also be used.
 
 ## Safety
 
-Security-challenge pages are skipped. Password, file-upload, payment, purchase, voting, and account-deletion actions are not mirrored.
+Security-challenge pages are not mirrored. Password, file-upload, payment, purchase, voting, and account-deletion actions are also not mirrored.
