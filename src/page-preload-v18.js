@@ -14,6 +14,7 @@ let stateSequence = 0;
 let lastStateSignature = '';
 let stateTimer = null;
 let inputTimer = null;
+let scrollFramePending = false;
 
 const PROTECTED = /captcha|recaptcha|hcaptcha|turnstile|security\s*check|checkout|purchase|payment|credit\s*card|debit\s*card|send\s*money|vote|delete\s*account|close\s*account/i;
 
@@ -37,46 +38,31 @@ function challengePresent() {
 
 function safeTarget(element) {
   if (!(element instanceof Element)) return false;
-  const field = element.closest(
-    'input, textarea, select, button, a, label, [role="button"], [contenteditable="true"]',
-  ) || element;
+  const field = element.closest('input, textarea, select, button, a, label, [role="button"], [contenteditable="true"]') || element;
   const type = String(field.type || '').toLowerCase();
   if (type === 'password' || type === 'file') return false;
-  const text = [
-    field.innerText,
-    field.value,
-    field.getAttribute?.('aria-label'),
-    field.getAttribute?.('href'),
-  ].filter(Boolean).join(' ');
+  const text = [field.innerText, field.value, field.getAttribute?.('aria-label'), field.getAttribute?.('href')]
+    .filter(Boolean).join(' ');
   return !PROTECTED.test(text);
 }
 
 function escapeCSS(value) {
   if (globalThis.CSS?.escape) return CSS.escape(String(value));
-  return String(value).replace(
-    /[^a-zA-Z0-9_-]/g,
-    (char) => `\\${char.codePointAt(0).toString(16)} `,
-  );
+  return String(value).replace(/[^a-zA-Z0-9_-]/g, (char) => `\\${char.codePointAt(0).toString(16)} `);
 }
 
 function selectorFor(element) {
   if (!(element instanceof Element)) return '';
   if (element.id) return `#${escapeCSS(element.id)}`;
-
   for (const attr of ['data-testid', 'data-test', 'data-qa', 'name', 'aria-label', 'placeholder']) {
     const value = element.getAttribute(attr);
-    if (value) {
-      return `${element.tagName.toLowerCase()}[${attr}="${String(value).replace(/"/g, '\\"')}"]`;
-    }
+    if (value) return `${element.tagName.toLowerCase()}[${attr}="${String(value).replace(/"/g, '\\"')}"]`;
   }
-
   const parts = [];
   let current = element;
   while (current && current !== document.documentElement && parts.length < 7) {
     const tag = current.tagName.toLowerCase();
-    const peers = current.parentElement
-      ? [...current.parentElement.children].filter((item) => item.tagName === current.tagName)
-      : [];
+    const peers = current.parentElement ? [...current.parentElement.children].filter((item) => item.tagName === current.tagName) : [];
     parts.unshift(`${tag}:nth-of-type(${Math.max(1, peers.indexOf(current) + 1)})`);
     current = current.parentElement;
   }
@@ -91,25 +77,28 @@ function fingerprint(element) {
     name: element?.getAttribute?.('name') || '',
     aria: element?.getAttribute?.('aria-label') || '',
     placeholder: element?.getAttribute?.('placeholder') || '',
-    text: String(element?.innerText || element?.value || '')
-      .trim()
-      .replace(/\s+/g, ' ')
-      .slice(0, 120),
+    text: String(element?.innerText || element?.value || '').trim().replace(/\s+/g, ' ').slice(0, 120),
     href: element?.href || '',
   };
 }
 
-function pageState() {
+function scrollState() {
   const root = document.scrollingElement || document.documentElement;
   const maxX = Math.max(1, root.scrollWidth - innerWidth);
   const maxY = Math.max(1, root.scrollHeight - innerHeight);
+  return {
+    scrollXRatio: Math.max(0, Math.min(1, scrollX / maxX)),
+    scrollYRatio: Math.max(0, Math.min(1, scrollY / maxY)),
+  };
+}
+
+function pageState() {
   return {
     url: location.href,
     title: document.title,
     loading: document.readyState !== 'complete',
     challenge: challengePresent(),
-    scrollXRatio: Math.max(0, Math.min(1, scrollX / maxX)),
-    scrollYRatio: Math.max(0, Math.min(1, scrollY / maxY)),
+    ...scrollState(),
     sequence: ++stateSequence,
   };
 }
@@ -117,22 +106,21 @@ function pageState() {
 function publishState(force = false) {
   if (!validPane) return;
   const state = pageState();
-  const signature = [
-    state.url,
-    state.scrollXRatio.toFixed(5),
-    state.scrollYRatio.toFixed(5),
-    state.loading,
-    state.challenge,
-  ].join('|');
-
+  const signature = `${state.url}|${state.scrollXRatio.toFixed(5)}|${state.scrollYRatio.toFixed(5)}|${state.loading}|${state.challenge}`;
   if (!force && signature === lastStateSignature) return;
   lastStateSignature = signature;
   send('pane-state-v18', { state });
 }
 
-function scheduleState(delay = 55, force = false) {
+function scheduleState(delay = 70, force = false) {
   clearTimeout(stateTimer);
   stateTimer = setTimeout(() => publishState(force), delay);
+}
+
+function publishFastScroll() {
+  scrollFramePending = false;
+  if (!isLeader || paused || !syncPolicy.scrolling) return;
+  send('leader-scroll-direct-v22', { state: scrollState() });
 }
 
 function nativeSet(element, value) {
@@ -155,12 +143,9 @@ function findTarget(action) {
     const exact = action.selector ? document.querySelector(action.selector) : null;
     if (exact) return exact;
   } catch {}
-
-  const query = action.tag
-    || 'button, a, input, textarea, select, label, [role="button"], [contenteditable="true"]';
+  const query = action.tag || 'button, a, input, textarea, select, label, [role="button"], [contenteditable="true"]';
   let best = null;
   let score = 0;
-
   for (const candidate of document.querySelectorAll(query)) {
     let next = 0;
     if (action.type && String(candidate.type || '').toLowerCase() === action.type) next += 4;
@@ -168,23 +153,16 @@ function findTarget(action) {
     if (action.aria && candidate.getAttribute('aria-label') === action.aria) next += 10;
     if (action.placeholder && candidate.getAttribute('placeholder') === action.placeholder) next += 8;
     if (action.href && candidate.href === action.href) next += 9;
-    const text = String(candidate.innerText || candidate.value || '')
-      .trim()
-      .replace(/\s+/g, ' ')
-      .slice(0, 120);
+    const text = String(candidate.innerText || candidate.value || '').trim().replace(/\s+/g, ' ').slice(0, 120);
     if (action.text && text === action.text) next += 11;
-    if (next > score) {
-      score = next;
-      best = candidate;
-    }
+    if (next > score) { score = next; best = candidate; }
   }
-
   return score >= 6 ? best : null;
 }
 
 function replay(action) {
   if (paused || challengePresent() || !action) return { ok: true, skipped: true };
-
+  const target = findTarget(action);
   if (action.kind === 'scroll-window') {
     window.__conduitScrollTarget = {
       x: Math.max(0, Math.min(1, Number(action.xRatio) || 0)),
@@ -193,41 +171,24 @@ function replay(action) {
     };
     return { ok: true };
   }
-
-  const target = findTarget(action);
   if (!target || !safeTarget(target)) return { ok: false, reason: 'target unavailable' };
-
   if (action.kind === 'input') {
-    if (target.type === 'checkbox' || target.type === 'radio') {
-      target.checked = Boolean(action.checked);
-    } else {
-      nativeSet(target, String(action.value ?? ''));
-    }
+    if (target.type === 'checkbox' || target.type === 'radio') target.checked = Boolean(action.checked);
+    else nativeSet(target, String(action.value ?? ''));
     target.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     target.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
     return { ok: true };
   }
-
   if (action.kind === 'click' || action.kind === 'navigate') {
     (target.closest('button, a, label, [role="button"], input, select, textarea') || target).click();
     return { ok: true };
   }
-
   if (action.kind === 'key') {
     target.focus?.({ preventScroll: true });
-    target.dispatchEvent(new KeyboardEvent('keydown', {
-      key: action.key,
-      code: action.code,
-      bubbles: true,
-    }));
-    target.dispatchEvent(new KeyboardEvent('keyup', {
-      key: action.key,
-      code: action.code,
-      bubbles: true,
-    }));
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: action.key, code: action.code, bubbles: true }));
+    target.dispatchEvent(new KeyboardEvent('keyup', { key: action.key, code: action.code, bubbles: true }));
     return { ok: true };
   }
-
   return { ok: false, reason: 'unsupported action' };
 }
 
@@ -237,18 +198,12 @@ function runScrollFollower() {
     const root = document.scrollingElement || document.documentElement;
     const maxX = Math.max(0, root.scrollWidth - innerWidth);
     const maxY = Math.max(0, root.scrollHeight - innerHeight);
-    const targetX = target.x * maxX;
-    const targetY = target.y * maxY;
-    const dx = targetX - scrollX;
-    const dy = targetY - scrollY;
+    const dx = (target.x * maxX) - scrollX;
+    const dy = (target.y * maxY) - scrollY;
     const distance = Math.hypot(dx, dy);
-
-    const factor = distance > 900 ? .20 : distance > 260 ? .145 : distance > 40 ? .105 : .075;
-    if (distance < .2 && performance.now() - target.updated > 100) {
-      scrollTo(targetX, targetY);
-    } else {
-      scrollTo(scrollX + (dx * factor), scrollY + (dy * factor));
-    }
+    const factor = distance > 800 ? .24 : distance > 220 ? .17 : .11;
+    if (distance < .3 && performance.now() - target.updated > 55) scrollTo(target.x * maxX, target.y * maxY);
+    else scrollTo(scrollX + (dx * factor), scrollY + (dy * factor));
   }
   requestAnimationFrame(runScrollFollower);
 }
@@ -259,111 +214,61 @@ function installHistoryHooks() {
     if (typeof original !== 'function') continue;
     history[method] = function conduitHistoryHook(...args) {
       const result = original.apply(this, args);
-      scheduleState(15, true);
+      scheduleState(10, true);
       return result;
     };
   }
 }
 
-function registerBurst() {
-  for (const delay of [0, 100, 320, 760, 1400]) {
-    setTimeout(() => {
-      send('register-pane-v18');
-      publishState(true);
-    }, delay);
-  }
-}
-
 installHistoryHooks();
-registerBurst();
-
-window.addEventListener('DOMContentLoaded', registerBurst, { once: true });
+send('register-pane-v18');
+window.addEventListener('DOMContentLoaded', () => { send('register-pane-v18'); publishState(true); }, { once: true });
 window.addEventListener('load', () => publishState(true), { once: true });
-window.addEventListener('pageshow', registerBurst);
-window.addEventListener('popstate', () => scheduleState(25, true));
-window.addEventListener('hashchange', () => scheduleState(25, true));
+window.addEventListener('popstate', () => scheduleState(20, true));
+window.addEventListener('hashchange', () => scheduleState(20, true));
 window.addEventListener('scroll', () => {
-  if (isLeader && syncPolicy.scrolling) scheduleState(24);
+  if (isLeader && syncPolicy.scrolling && !scrollFramePending) {
+    scrollFramePending = true;
+    requestAnimationFrame(publishFastScroll);
+  }
+  scheduleState(110);
 }, { passive: true });
 
 if (isLeader) {
   document.addEventListener('click', (event) => {
-    const target = event.target instanceof Element
-      ? event.target.closest(
-        'button, a, label, [role="button"], input, select, textarea',
-      ) || event.target
-      : null;
+    const target = event.target instanceof Element ? event.target.closest('button, a, label, [role="button"], input, select, textarea') || event.target : null;
     if (!safeTarget(target)) return;
     const navigation = Boolean(target.closest?.('a[href]'));
     if (navigation && !syncPolicy.navigation) return;
     if (!navigation && !syncPolicy.clicks) return;
-    send('leader-action-v18', {
-      action: {
-        kind: navigation ? 'navigate' : 'click',
-        ...fingerprint(target),
-      },
-    });
+    send('leader-action-v18', { action: { kind: navigation ? 'navigate' : 'click', ...fingerprint(target) } });
   }, true);
 
   document.addEventListener('input', (event) => {
     if (!syncPolicy.typing || !safeTarget(event.target)) return;
     clearTimeout(inputTimer);
     const target = event.target;
-    inputTimer = setTimeout(() => {
-      send('leader-action-v18', {
-        action: {
-          kind: 'input',
-          ...fingerprint(target),
-          value: target.isContentEditable ? target.textContent : target.value,
-          checked: Boolean(target.checked),
-        },
-      });
-    }, 45);
+    inputTimer = setTimeout(() => send('leader-action-v18', {
+      action: { kind: 'input', ...fingerprint(target), value: target.isContentEditable ? target.textContent : target.value, checked: Boolean(target.checked) },
+    }), 35);
   }, true);
 
   document.addEventListener('keydown', (event) => {
     if (!syncPolicy.typing || !safeTarget(event.target)) return;
-    if (event.key === 'Enter') {
-      send('leader-action-v18', {
-        action: {
-          kind: 'key',
-          ...fingerprint(event.target),
-          key: event.key,
-          code: event.code,
-        },
-      });
-    }
+    if (event.key === 'Enter') send('leader-action-v18', { action: { kind: 'key', ...fingerprint(event.target), key: event.key, code: event.code } });
   }, true);
 }
 
-ipcRenderer.on('request-pane-state-v18', () => {
-  send('register-pane-v18');
-  publishState(true);
-});
-
-ipcRenderer.on('sync-policy-v18', (_event, nextPolicy) => {
-  syncPolicy = { ...syncPolicy, ...(nextPolicy || {}) };
-});
-
-ipcRenderer.on('pane-paused-v18', (_event, value) => {
-  paused = Boolean(value);
-});
-
+ipcRenderer.on('request-pane-state-v18', () => publishState(true));
+ipcRenderer.on('sync-policy-v18', (_event, nextPolicy) => { syncPolicy = { ...syncPolicy, ...(nextPolicy || {}) }; });
+ipcRenderer.on('pane-paused-v18', (_event, value) => { paused = Boolean(value); });
 ipcRenderer.on('replay-action-v18', (_event, payload) => {
   const result = replay(payload?.action);
   send('replay-result-v18', { actionId: payload?.actionId, result });
 });
-
 ipcRenderer.on('leader-scroll-v18', (_event, state) => {
-  replay({
-    kind: 'scroll-window',
-    xRatio: state?.scrollXRatio,
-    yRatio: state?.scrollYRatio,
-  });
+  replay({ kind: 'scroll-window', xRatio: state?.scrollXRatio, yRatio: state?.scrollYRatio });
 });
 
 requestAnimationFrame(runScrollFollower);
-setInterval(() => {
-  send('register-pane-v18');
-  publishState();
-}, 2500);
+setInterval(() => { send('register-pane-v18'); publishState(); }, 2200);
