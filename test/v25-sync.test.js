@@ -8,40 +8,54 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('stale Following-off health cannot cancel a new Follow Screen 1 request', () => {
-  const bridge = read('src/renderer/bridge-v25.js');
-  assert.match(bridge, /let desiredFollowing = false/);
-  assert.match(bridge, /let followGuardUntil = 0/);
-  assert.match(bridge, /guardActive && reportedFollowing !== desiredFollowing/);
-  assert.match(bridge, /followGuardUntil = Date\.now\(\) \+ 2200/);
-  assert.match(bridge, /await api\.resyncFollowersV25\(\)/);
+test('one coordinator owns every Follow Screen 1 state change', () => {
+  const main = read('src/main-v26-sync.js');
+  assert.match(main, /ipcMain\.handle\('v18-set-following'/);
+  assert.match(main, /ipcMain\.handle\('v18-set-policy'/);
+  assert.match(main, /ipcMain\.handle\('v18-set-pane-paused'/);
+  assert.match(main, /ipcMain\.handle\('v26-resync-all'/);
+  assert.match(main, /sendConfigurationToAll/);
+  assert.match(main, /fullResync/);
+  assert.doesNotMatch(main, /v22-|v24-|v25-configure-sync|leader-heartbeat-v25/);
 });
 
-test('IP fallback checks only screens still missing a numeric address', () => {
-  const main = read('src/main-v25-ip-fallback.js');
-  const bridge = read('src/renderer/bridge-v25-ip.js');
-  assert.match(main, /function requestedPanes/);
-  assert.match(main, /paneNumbers\.map/);
-  assert.match(bridge, /const missing = Array\.from/);
-  assert.match(bridge, /checkIPFallbacksV25\(missing\)/);
+test('navigation, scrolling, controls, and health use one v26 contract', () => {
+  const main = read('src/main-v26-sync.js');
+  const preload = read('src/page-preload-v26.js');
+  for (const channel of [
+    'v26-state',
+    'v26-leader-scroll',
+    'v26-leader-action',
+    'v26-leader-snapshot',
+    'v26-ack',
+  ]) {
+    assert.match(main, new RegExp(channel));
+    assert.match(preload, new RegExp(channel));
+  }
+  assert.match(preload, /requestAnimationFrame\(publishFastScroll\)/);
+  assert.match(preload, /setInterval\(\(\) => \{\n  if \(isLeader\) publishSnapshot\(\);\n\}, 500\)/);
 });
 
-test('sync configuration is deduplicated during live health updates', () => {
-  const bridge = read('src/renderer/bridge-v25.js');
-  assert.match(bridge, /let lastConfiguration = ''/);
-  assert.match(bridge, /signature === lastConfiguration/);
+test('disabling Following or Scrolling releases follower scroll targets', () => {
+  const main = read('src/main-v26-sync.js');
+  const preload = read('src/page-preload-v26.js');
+  assert.match(main, /clearFollowerScrollTargets/);
+  assert.match(main, /if \(!policy\.scrolling\) clearFollowerScrollTargets\(\)/);
+  assert.match(preload, /if \(!following \|\| paused \|\| !policy\.scrolling\) scrollTarget = null/);
+  assert.match(preload, /v26-clear-scroll/);
 });
 
-test('checkmyip bookmark opens myip.wtf', () => {
-  const html = read('src/renderer/index-v18.html');
-  const bridge = read('src/renderer/bridge-v25.js');
-  assert.match(html, /id="bookmark-checkmyip"/);
-  assert.match(html, />checkmyip<\/button>/);
-  assert.match(bridge, /api\.navigate\('https:\/\/myip\.wtf'\)/);
+test('safe control repair excludes protected fields and actions', () => {
+  const preload = read('src/page-preload-v26.js');
+  assert.match(preload, /type === 'password' \|\| type === 'file'/);
+  assert.match(preload, /captcha\|recaptcha\|hcaptcha/);
+  assert.match(preload, /checkout\|purchase\|payment/);
+  assert.match(preload, /delete\\s\*account/);
 });
 
-test('welcome page no longer shows the local-page footer', () => {
-  const html = read('src/renderer/welcome-v18.html');
-  assert.doesNotMatch(html, /Conduit local welcome page/);
-  assert.doesNotMatch(html, /<footer>/);
+test('legacy renderer wrappers are inert', () => {
+  const v25 = read('src/renderer/bridge-v25.js');
+  const ip = read('src/renderer/bridge-v25-ip.js');
+  assert.doesNotMatch(v25, /configureSyncV25|resyncFollowersV25|onSyncQualityV25/);
+  assert.doesNotMatch(ip, /checkIPs = async|MutationObserver/);
 });
