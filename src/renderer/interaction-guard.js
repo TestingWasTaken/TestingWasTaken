@@ -13,7 +13,8 @@
         return descriptor.get.call(this);
       },
       set(value) {
-        const next = value == null ? '' : String(value);
+        let next = value == null ? '' : String(value);
+        if (this?.id === 'setup-eyebrow' && next === 'Conduit 0.14') next = 'Conduit 0.15';
         if (descriptor.get.call(this) === next) return;
         descriptor.set.call(this, next);
       },
