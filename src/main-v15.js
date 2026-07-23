@@ -22,6 +22,7 @@ let sessionNumber = 0;
 let syncReadyReported = false;
 let samplerBusy = false;
 let lastSampleSignature = '';
+let fallbackScreenNumber = 0;
 
 function timestamp() {
   return new Date().toLocaleTimeString('en-CA', {
@@ -62,10 +63,20 @@ function canonicalURL(value) {
 function screenNumberFromContents(contents) {
   const partition = contents?.session?.getPartition?.() || '';
   const match = partition.match(/relay-screen-(\d+)/i);
-  const screenNumber = Number(match?.[1] || 0);
-  return Number.isInteger(screenNumber) && screenNumber >= 1 && screenNumber <= MAX_SCREENS
-    ? screenNumber
-    : 0;
+  const partitionNumber = Number(match?.[1] || 0);
+  if (Number.isInteger(partitionNumber) && partitionNumber >= 1 && partitionNumber <= MAX_SCREENS) {
+    return partitionNumber;
+  }
+
+  // WebContentsView reports browserView. Creation order is stable because the
+  // underlying browser creates all pane views sequentially after the toolbar.
+  const type = contents?.getType?.() || '';
+  if (type === 'browserView' && fallbackScreenNumber < MAX_SCREENS) {
+    fallbackScreenNumber += 1;
+    return fallbackScreenNumber;
+  }
+
+  return 0;
 }
 
 function activeFollowers() {
@@ -102,7 +113,7 @@ function smoothScrollContents(contents, state) {
     const targetX = ${JSON.stringify(xRatio)} * maxX;
     const targetY = ${JSON.stringify(yRatio)} * maxY;
     const key = '__conduitFollowerMotion';
-    const motion = window[key] || { frame: 0, x: scrollX, y: scrollY, targetX, targetY };
+    const motion = window[key] || { frame: 0, targetX, targetY };
     motion.targetX = targetX;
     motion.targetY = targetY;
     window[key] = motion;
@@ -171,6 +182,7 @@ function registerContents(contents, screenNumber) {
       if (screens.get(screenNumber) === contents) screens.delete(screenNumber);
       challengedScreens.delete(screenNumber);
       alignmentLocks.delete(screenNumber);
+      if (![...screens.values()].some(live)) fallbackScreenNumber = 0;
     });
 
     contents.on('did-stop-loading', () => {
