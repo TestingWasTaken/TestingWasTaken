@@ -78,7 +78,9 @@
   api.onHealth = (callback) => original.onHealth((health) => {
     latestHealth = health;
     currentFollowing = Boolean(health?.followingEnabled);
-    currentPolicy = { ...currentPolicy, ...(health?.policy || {}) };
+    if (currentFollowing && health?.policy) {
+      currentPolicy = { ...currentPolicy, ...health.policy };
+    }
     callback(health);
     configure();
     queuePatch();
