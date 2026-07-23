@@ -3,11 +3,11 @@
   "version": "0.15.0",
   "private": true,
   "description": "Linked one-to-eight-pane Electron browser with smooth pane following, isolated routes, beta ad filtering, live toolbar settings, and a compact mineral-glass interface.",
-  "main": "src/main-v15.js",
+  "main": "src/main-entry-v15.js",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check src/main-v15.js && node --check src/adblocker.js && node --check src/main.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && node --check src/preload.js && node --check src/page-preload.js && node --check src/renderer/interaction-guard.js && node --check src/renderer/app-v11.js && node --check src/renderer/ui-v14.js && node --check src/renderer/ui-v15.js && npm test"
+    "check": "node --check src/main-entry-v15.js && node --check src/main-v15.js && node --check src/adblocker.js && node --check src/main.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && node --check src/preload.js && node --check src/page-preload.js && node --check src/renderer/interaction-guard.js && node --check src/renderer/app-v11.js && node --check src/renderer/ui-v14.js && node --check src/renderer/ui-v15.js && npm test"
   },
   "devDependencies": {
     "electron": "^37.2.3"
