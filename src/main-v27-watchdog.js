@@ -56,18 +56,20 @@ function clearAllRecovery() {
   for (let pane = 2; pane <= MAX_PANES; pane += 1) clearRecovery(pane);
 }
 
-function recoveryMessage(contents, item) {
+function recoveryMessage(contents, item, score) {
   if (contents.isLoading()) return 'Waiting for the page to finish loading…';
+  if (item.mode === 'state' && Number.isFinite(score)) return `Repairing page state · ${score}% synchronized`;
   if (item.attempts === 0) return 'Checking the page against Screen 1…';
   return `Reconnecting to Screen 1 · attempt ${item.attempts}`;
 }
 
 function checkFollowers() {
   const health = sync.healthSnapshot();
-  const targetURL = validTarget(health?.rows?.[0]?.url);
-  const shouldFollow = health?.followingEnabled === true && health?.policy?.navigation === true;
+  const followingEnabled = health?.followingEnabled === true;
+  const navigationEnabled = followingEnabled && health?.policy?.navigation === true;
+  const targetURL = navigationEnabled ? validTarget(health?.rows?.[0]?.url) : '';
 
-  if (!shouldFollow || !targetURL) {
+  if (!followingEnabled) {
     clearAllRecovery();
     return;
   }
@@ -83,51 +85,68 @@ function checkFollowers() {
     }
 
     const actualURL = normalizeURL(contents.getURL());
-    if (actualURL === targetURL) {
+    const urlBehind = Boolean(targetURL) && actualURL !== targetURL;
+    const score = Number(row.syncScore);
+    const stateBehind = Number.isFinite(score) && score < 65;
+
+    if (!urlBehind && !stateBehind) {
       clearRecovery(pane);
       continue;
     }
 
+    const mode = urlBehind ? 'url' : 'state';
+    const recoveryKey = `${mode}:${targetURL || actualURL}`;
     let item = recovery.get(pane);
-    if (!item || item.targetURL !== targetURL) {
+    if (!item || item.key !== recoveryKey) {
       item = {
+        key: recoveryKey,
+        mode,
         targetURL,
         since: now,
         attempts: 0,
         lastAttemptAt: 0,
-        nextAttemptAt: now + 650,
+        nextAttemptAt: now + (urlBehind ? 650 : 1000),
       };
       recovery.set(pane, item);
     }
 
     const elapsed = now - item.since;
-    if (elapsed >= 450) {
+    const displayDelay = item.mode === 'url' ? 450 : 850;
+    if (elapsed >= displayDelay) {
       sendRecovery(pane, {
         active: true,
-        title: 'Catching up',
-        message: recoveryMessage(contents, item),
+        title: item.mode === 'url' ? 'Catching up' : 'Synchronizing',
+        message: recoveryMessage(contents, item, score),
         attempt: item.attempts,
       });
     }
 
-    if (elapsed < 650 || now < item.nextAttemptAt) continue;
+    if (elapsed < displayDelay || now < item.nextAttemptAt) continue;
     if (contents.isLoading() && now - item.lastAttemptAt < 2600) continue;
 
     item.attempts += 1;
     item.lastAttemptAt = now;
     item.nextAttemptAt = now + Math.min(5000, 900 + (item.attempts * 700));
 
-    sendRecovery(pane, {
-      active: true,
-      title: 'Synchronizing',
-      message: `Opening the Screen 1 address · attempt ${item.attempts}`,
-      attempt: item.attempts,
-    });
-
-    try {
-      if (contents.isLoading()) contents.stop();
-      contents.loadURL(targetURL).catch(() => {});
-    } catch {}
+    if (item.mode === 'url' && item.targetURL) {
+      sendRecovery(pane, {
+        active: true,
+        title: 'Synchronizing',
+        message: `Opening the Screen 1 address · attempt ${item.attempts}`,
+        attempt: item.attempts,
+      });
+      try {
+        if (contents.isLoading()) contents.stop();
+        contents.loadURL(item.targetURL).catch(() => {});
+      } catch {}
+    } else {
+      sendRecovery(pane, {
+        active: true,
+        title: 'Synchronizing',
+        message: `Reapplying Screen 1 state · attempt ${item.attempts}`,
+        attempt: item.attempts,
+      });
+    }
 
     setTimeout(() => {
       try { sync.fullResync(); } catch {}
