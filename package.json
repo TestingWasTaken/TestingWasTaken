@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check src/main-entry-v18.js && node --check src/main-v18.js && node --check src/workspace-v18.js && node --check src/preload-v18.js && node --check src/page-preload-v18.js && node --check src/renderer/app-v18.js && node --check src/adblocker.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && npm test"
+    "check": "node --check src/main-entry-v18.js && node --check src/main-v18.js && node --check src/workspace-v18.js && node --check src/preload-v18.js && node --check src/page-preload-v18.js && node --check src/renderer/state-guard-v18.js && node --check src/renderer/app-v18.js && node --check src/adblocker.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && npm test"
   },
   "devDependencies": {
     "electron": "^37.2.3"
