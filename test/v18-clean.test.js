@@ -8,15 +8,15 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('package launches the 0.27 recovery entry', () => {
+test('package launches the 0.28 challenge-safe entry', () => {
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.main, 'src/main-entry-v27.js');
-  assert.equal(pkg.version, '0.27.0');
+  assert.equal(pkg.main, 'src/main-entry-v28.js');
+  assert.equal(pkg.version, '0.28.0');
   assert.match(pkg.scripts.check, /main-v27-watchdog\.js/);
-  assert.match(pkg.scripts.check, /page-preload-v27\.js/);
+  assert.match(pkg.scripts.check, /page-preload-v28\.js/);
 });
 
-test('startup keeps one coordinator and adds the URL watchdog', () => {
+test('startup keeps one coordinator and one watchdog', () => {
   const entry = read('src/main-entry-v27.js');
   assert.match(entry, /main-v26-sync/);
   assert.match(entry, /main-v27-watchdog/);
@@ -32,12 +32,14 @@ test('each launch still starts with four screens', () => {
   assert.match(workspace, /ensureViews\(4\)/);
 });
 
-test('pane views load the v27 wrapper around v26', () => {
+test('pane views load the v28 wrapper around the v27 and v26 contracts', () => {
   const entry = read('src/page-preload-v18.js');
+  const v28 = read('src/page-preload-v28.js');
   const v27 = read('src/page-preload-v27.js');
-  assert.match(entry, /page-preload-v27/);
+  assert.match(entry, /page-preload-v28/);
+  assert.match(v28, /page-preload-v27/);
   assert.match(v27, /page-preload-v26/);
-  assert.match(v27, /v27-recovery/);
+  assert.match(v28, /challengePresentV28/);
 });
 
 test('settings remain draft-only', () => {
