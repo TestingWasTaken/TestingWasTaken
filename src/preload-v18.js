@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld('conduit', {
   syncV22State: (state) => ipcRenderer.invoke('v22-sync-state', state),
   resyncAll: () => ipcRenderer.invoke('v22-resync-all'),
   forgetPaneV22: (pane) => ipcRenderer.invoke('v22-forget-pane', pane),
+  clearScrollTargets: () => ipcRenderer.invoke('v24-clear-scroll-targets'),
+  requestPaneStates: () => ipcRenderer.invoke('v24-request-pane-states'),
 
   getAdBlock: () => ipcRenderer.invoke('v18-get-adblock'),
   setAdBlock: (enabled) => ipcRenderer.invoke('v18-set-adblock', enabled),
