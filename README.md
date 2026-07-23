@@ -1,16 +1,16 @@
-# Conduit 0.28
+# Conduit 0.29
 
 Conduit is a one-to-eight-screen Electron browser for repeating ordinary browsing work across isolated sessions. Screen 1 can lead navigation, scrolling, typing, and clicks while followers keep separate cookies, storage, cache, and optional route identities.
 
 ## What changed
 
-- New sites now open in two stages: the main registrable domain first, then the exact subdomain, path, query, or hash.
-- Followers that finish the main-domain stage together receive the exact Screen 1 address in the same navigation batch.
-- CAPTCHA, Cloudflare challenge, browser-check, and human-verification pages are excluded from automatic navigation retries.
-- A challenge on Screen 1 is never propagated to followers.
-- A challenge on one follower does not hold back the other followers; that screen rejoins synchronization after the challenge clears.
-- The 450 ms watchdog still repairs genuine URL or state drift, but it releases the recovery overlay on verification pages instead of remaining stuck on Connecting.
-- Kept the single synchronization coordinator, translucent interface, clean four-screen start, BrowserLeaks bookmark, Select All support, and numeric IP fallback.
+- Catching up is limited to three automatic repair attempts per follower and target.
+- Recovery dismissal is unconditional, preventing an old full-screen overlay from remaining visible after the follower has recovered, paused, or encountered a challenge.
+- After the third failed attempt, Conduit stops retrying and reveals the follower's current page.
+- A compact panel on the right shows both the follower's current address and the Screen 1 target.
+- **Reset screen** clears and rebuilds that follower, then requests a complete resynchronization.
+- **Manual control** pauses following for that screen and closes the recovery panel immediately.
+- Kept domain-first navigation, CAPTCHA-safe behavior, the single synchronization coordinator, translucent interface, clean four-screen start, BrowserLeaks bookmark, Select All support, and numeric IP fallback.
 
 ## Install on macOS
 
