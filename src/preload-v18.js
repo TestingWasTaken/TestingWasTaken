@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('conduit', {
   },
   syncPaneCount: (value) => ipcRenderer.invoke('v18-set-pane-count', value),
   setZoom: (value) => ipcRenderer.invoke('v18-set-zoom', value),
+  setAudioMode: (value) => ipcRenderer.invoke('v18-set-audio-mode', value),
   setNetwork: (value) => ipcRenderer.invoke('v18-set-network', value),
   checkIPs: () => ipcRenderer.invoke('v18-check-ips'),
   resetPane: (pane) => ipcRenderer.invoke('v18-reset-pane', pane),
@@ -37,7 +38,7 @@ contextBridge.exposeInMainWorld('conduit', {
   openExternal: (url) => ipcRenderer.invoke('v18-open-external', url),
 
   onState: (callback) => ipcRenderer.on('workspace-state-v18', (_event, state) => {
-    ipcRenderer.invoke('v18-set-pane-count', state?.screenCount || 1).catch(() => {});
+    ipcRenderer.invoke('v18-set-pane-count', state?.screenCount || 4).catch(() => {});
     callback(state);
   }),
   onLayout: (callback) => ipcRenderer.on('layout-state-v18', (_event, state) => callback(state)),
