@@ -13,7 +13,9 @@ test('package launches Conduit 0.25 through the heartbeat entry', () => {
   assert.equal(pkg.main, 'src/main-entry-v25.js');
   assert.equal(pkg.version, '0.25.0');
   assert.match(pkg.scripts.check, /main-v25-sync\.js/);
+  assert.match(pkg.scripts.check, /main-v25-ip-fallback\.js/);
   assert.match(pkg.scripts.check, /bridge-v25\.js/);
+  assert.match(pkg.scripts.check, /bridge-v25-ip\.js/);
 });
 
 test('each launch still removes saved workspace preferences', () => {
@@ -79,11 +81,16 @@ test('turning Following or Scrolling off clears old follower scroll targets', ()
   assert.match(bridge, /if \(!enabled\) await clearFollowerTargets\(\)/);
 });
 
-test('numeric IP is shown when location is unavailable', () => {
-  const bridge = read('src/renderer/bridge-v25.js');
+test('IP-only fallback keeps a numeric address when location services fail', () => {
+  const main = read('src/main-v25-ip-fallback.js');
+  const preload = read('src/preload-v18.js');
+  const bridge = read('src/renderer/bridge-v25-ip.js');
+  assert.match(main, /api64\.ipify\.org/);
+  assert.match(main, /icanhazip\.com/);
+  assert.match(main, /v25-check-ip-fallbacks/);
+  assert.match(preload, /checkIPFallbacksV25/);
   assert.match(bridge, /IP address · \$\{ip\}/);
-  assert.match(bridge, /IP address · \$\{route\.ip\}/);
-  assert.match(bridge, /location unavailable/i);
+  assert.match(bridge, /fallbackIPs/);
 });
 
 test('screen rows show measured synchronization percentages', () => {
@@ -94,10 +101,12 @@ test('screen rows show measured synchronization percentages', () => {
   assert.match(bridge, /Screen 1 leads/);
 });
 
-test('renderer loads the quality bridge before the main app', () => {
+test('renderer loads both v25 bridges before the main app', () => {
   const html = read('src/renderer/index-v18.html');
   assert.match(html, /bridge-v25\.js/);
-  assert.ok(html.indexOf('bridge-v25.js') < html.indexOf('app-v21.js'));
+  assert.match(html, /bridge-v25-ip\.js/);
+  assert.ok(html.indexOf('bridge-v25.js') < html.indexOf('bridge-v25-ip.js'));
+  assert.ok(html.indexOf('bridge-v25-ip.js') < html.indexOf('app-v21.js'));
 });
 
 test('welcome page remains a visible alignment test', () => {
