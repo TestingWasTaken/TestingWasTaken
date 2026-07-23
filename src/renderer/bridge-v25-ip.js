@@ -18,13 +18,21 @@
 
   api.checkIPs = async () => {
     const result = await originalCheckIPs();
-    const count = Number(latestState?.screenCount || result?.results?.length || 4);
-    const fallbacks = await api.checkIPFallbacksV25(count).catch(() => []);
-    fallbackIPs = new Map(
-      (Array.isArray(fallbacks) ? fallbacks : [])
-        .filter((item) => item?.ok && item.ip)
-        .map((item) => [Number(item.paneNumber), String(item.ip)]),
-    );
+    const results = Array.isArray(result?.results) ? result.results : [];
+    const count = Number(latestState?.screenCount || results.length || 4);
+    const missing = Array.from({ length: count }, (_unused, index) => {
+      const route = results[index] || latestState?.ips?.[index];
+      const ip = String(route?.ip || '').trim();
+      return ip && ip !== 'Unavailable' ? null : index + 1;
+    }).filter(Boolean);
+
+    if (missing.length) {
+      const fallbacks = await api.checkIPFallbacksV25(missing).catch(() => []);
+      for (const item of Array.isArray(fallbacks) ? fallbacks : []) {
+        if (item?.ok && item.ip) fallbackIPs.set(Number(item.paneNumber), String(item.ip));
+      }
+    }
+
     queuePatch();
     return result;
   };
