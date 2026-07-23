@@ -166,7 +166,7 @@ function replay(action) {
     target.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
     return { ok: true };
   }
-  if (action.kind === 'click') {
+  if (action.kind === 'click' || action.kind === 'navigate') {
     (target.closest('button, a, label, [role="button"], input, select, textarea') || target).click();
     return { ok: true };
   }
@@ -195,6 +195,19 @@ function runScrollFollower() {
   requestAnimationFrame(runScrollFollower);
 }
 
+function installHistoryHooks() {
+  for (const method of ['pushState', 'replaceState']) {
+    const original = history[method];
+    if (typeof original !== 'function') continue;
+    history[method] = function conduitHistoryHook(...args) {
+      const result = original.apply(this, args);
+      scheduleState(10, true);
+      return result;
+    };
+  }
+}
+
+installHistoryHooks();
 send('register-pane-v18');
 window.addEventListener('DOMContentLoaded', () => { send('register-pane-v18'); publishState(true); }, { once: true });
 window.addEventListener('load', () => publishState(true), { once: true });
@@ -204,10 +217,12 @@ window.addEventListener('scroll', () => { if (isLeader && syncPolicy.scrolling) 
 
 if (isLeader) {
   document.addEventListener('click', (event) => {
-    if (!syncPolicy.clicks) return;
     const target = event.target instanceof Element ? event.target.closest('button, a, label, [role="button"], input, select, textarea') || event.target : null;
     if (!safeTarget(target)) return;
-    send('leader-action-v18', { action: { kind: 'click', ...fingerprint(target) } });
+    const navigation = Boolean(target.closest?.('a[href]'));
+    if (navigation && !syncPolicy.navigation) return;
+    if (!navigation && !syncPolicy.clicks) return;
+    send('leader-action-v18', { action: { kind: navigation ? 'navigate' : 'click', ...fingerprint(target) } });
   }, true);
 
   document.addEventListener('input', (event) => {
@@ -226,7 +241,7 @@ if (isLeader) {
 }
 
 ipcRenderer.on('request-pane-state-v18', () => publishState(true));
-ipcRenderer.on('sync-policy-v18', (_event, policy) => { syncPolicy = { ...syncPolicy, ...(policy || {}) }; });
+ipcRenderer.on('sync-policy-v18', (_event, nextPolicy) => { syncPolicy = { ...syncPolicy, ...(nextPolicy || {}) }; });
 ipcRenderer.on('pane-paused-v18', (_event, value) => { paused = Boolean(value); });
 ipcRenderer.on('replay-action-v18', (_event, payload) => {
   const result = replay(payload?.action);
