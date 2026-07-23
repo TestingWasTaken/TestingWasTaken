@@ -1,13 +1,13 @@
 {
   "name": "conduit-browser",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "private": true,
-  "description": "A translucent multi-pane Electron browser with a boot-to-settings flow, Standard and Multiple IP modes, location fallback, pane reconnection, sound routing, and optimized one-to-eight-pane following.",
-  "main": "src/main-entry-v18.js",
+  "description": "A translucent multi-pane Electron browser with immediate scroll following, reliable address navigation, automatic post-settings resynchronization, reset recovery, and a simple Conduit alignment page.",
+  "main": "src/main-entry-v22.js",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check src/main-entry-v18.js && node --check src/main-v18.js && node --check src/workspace-v21.js && node --check src/preload-v18.js && node --check src/page-preload-v18.js && node --check src/renderer/app-v21.js && node --check src/adblocker.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && npm test"
+    "check": "node --check src/main-entry-v22.js && node --check src/main-v22-hooks.js && node --check src/main-entry-v18.js && node --check src/main-v18.js && node --check src/workspace-v21.js && node --check src/preload-v18.js && node --check src/page-preload-v18.js && node --check src/renderer/bridge-v22.js && node --check src/renderer/app-v21.js && node --check src/adblocker.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && npm test"
   },
   "devDependencies": {
     "electron": "^37.2.3"
