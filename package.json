@@ -1,13 +1,13 @@
 {
-  "name": "relay-browser",
-  "version": "0.13.0",
+  "name": "conduit-browser",
+  "version": "0.14.0",
   "private": true,
-  "description": "Multi-screen Electron browser with explicit Screen 1 controller registration, reliable synchronization, optional ad blocking, private routed connections, and a native graphite control-desk interface.",
+  "description": "Linked multi-pane Electron browser with explicit pane-one control, isolated routes, optional request filtering, live toolbar settings, and a compact liquid-glass interface.",
   "main": "src/main-v12.js",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check src/main-v12.js && node --check src/adblocker.js && node --check src/main.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && node --check src/preload.js && node --check src/page-preload.js && node --check src/renderer/app-v11.js && node --check src/renderer/ui-v13.js && npm test"
+    "check": "node --check src/main-v12.js && node --check src/adblocker.js && node --check src/main.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && node --check src/preload.js && node --check src/page-preload.js && node --check src/renderer/app-v11.js && node --check src/renderer/ui-v14.js && npm test"
   },
   "devDependencies": {
     "electron": "^37.2.3"
