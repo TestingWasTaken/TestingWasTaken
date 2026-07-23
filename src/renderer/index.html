@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-conduit-theme="mineral">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,16 +8,15 @@
   <link rel="stylesheet" href="styles-v11.css" />
   <link rel="stylesheet" href="styles-v13.css" />
   <link rel="stylesheet" href="styles-v14.css" />
+  <link rel="stylesheet" href="styles-v15.css" />
+  <link rel="stylesheet" href="styles-v16.css" />
 </head>
 <body>
   <header class="toolbar">
     <div class="nav-row">
       <div class="conduit-brand" aria-label="Conduit multi-session browser">
         <span class="conduit-mark" aria-hidden="true"></span>
-        <span>
-          <strong>Conduit</strong>
-          <small>linked browsing</small>
-        </span>
+        <strong>Conduit</strong>
       </div>
 
       <div class="nav-buttons">
@@ -43,6 +42,10 @@
             <option value="2">2</option>
             <option value="3">3</option>
             <option value="4" selected>4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
           </select>
         </label>
 
@@ -74,17 +77,14 @@
         </button>
 
         <button id="quick-adblock" class="quick-toggle" type="button" aria-pressed="true">
-          <span>Filter</span>
+          <span>Ad filter</span>
           <strong>On</strong>
         </button>
       </div>
 
-      <div class="status-area">
+      <div class="status-area" aria-hidden="true">
         <span id="status-dot" class="status-dot"></span>
-        <div>
-          <strong id="status">Workspace online</strong>
-          <small id="dns-status">Standard routing</small>
-        </div>
+        <div><strong id="status">Workspace online</strong><small id="dns-status">Standard routing</small></div>
       </div>
 
       <div class="workspace-summary legacy-summary" aria-hidden="true">
@@ -103,9 +103,9 @@
     <section id="setup-dialog" class="setup-dialog" role="dialog" aria-modal="true" aria-labelledby="setup-title">
       <header class="setup-header">
         <div>
-          <p id="setup-eyebrow" class="eyebrow">Conduit 0.14.1</p>
-          <h1 id="setup-title">Workspace</h1>
-          <p id="setup-intro" class="setup-intro">Tune the workspace, routes, filtering, and pane resets.</p>
+          <p id="setup-eyebrow" class="eyebrow">Conduit 0.16</p>
+          <h1 id="setup-title">Settings</h1>
+          <p id="setup-intro" class="setup-intro">Configure the workspace, route, appearance, and session tools.</p>
         </div>
         <button id="setup-cancel" class="icon-close" aria-label="Close settings" hidden>×</button>
       </header>
@@ -115,10 +115,7 @@
           <section class="option-section first-section">
             <div class="section-title">
               <span class="section-number">01</span>
-              <div>
-                <h2>Layout</h2>
-                <p>Pane count and page scale.</p>
-              </div>
+              <div><h2>Workspace matrix</h2><p>Arrange panes and set a shared reading scale.</p></div>
             </div>
 
             <div class="option-grid">
@@ -129,6 +126,10 @@
                   <option value="2">2 panes</option>
                   <option value="3">3 panes</option>
                   <option value="4" selected>4 panes</option>
+                  <option value="5">5 panes · experimental</option>
+                  <option value="6">6 panes · experimental</option>
+                  <option value="7">7 panes · high load</option>
+                  <option value="8">8 panes · high load</option>
                 </select>
               </label>
 
@@ -146,32 +147,23 @@
                 </select>
               </label>
             </div>
+            <p class="performance-caution">Five to eight panes run additional browser sessions. Expect higher memory use, battery drain, and possible lag on heavier websites.</p>
           </section>
 
           <section class="option-section">
             <div class="section-title">
               <span class="section-number">02</span>
-              <div>
-                <h2>Routing</h2>
-                <p>Choose one shared route or an isolated identity per pane.</p>
-              </div>
+              <div><h2>IP address / location</h2></div>
             </div>
 
             <div class="route-grid">
               <label class="route-card">
                 <input type="radio" name="setup-network" value="direct" checked />
-                <span>
-                  <strong>Standard</strong>
-                  <small>Your usual network route.</small>
-                </span>
+                <span><strong>Standard</strong><small>Use the device’s normal connection.</small></span>
               </label>
-
               <label class="route-card">
                 <input type="radio" name="setup-network" value="tor" />
-                <span>
-                  <strong>Isolated</strong>
-                  <small>A separate route identity for every pane.</small>
-                </span>
+                <span><strong>Isolated</strong><small>Request a separate route identity for each pane.</small></span>
               </label>
             </div>
           </section>
@@ -179,103 +171,68 @@
           <section class="option-section compact-options">
             <label class="toggle-card">
               <input id="setup-check-ips" type="checkbox" checked />
-              <span>
-                <strong>Verify routes</strong>
-                <small>Confirm each visible pane before unlocking.</small>
-              </span>
+              <span><strong>Verify routes</strong><small>Check the visible panes before returning to the workspace.</small></span>
             </label>
-
             <label class="toggle-card">
               <input id="setup-sync" type="checkbox" />
-              <span>
-                <strong>Follow pane 1</strong>
-                <small>Mirror supported actions and scroll position.</small>
-              </span>
+              <span><strong>Follow pane 1</strong><small>Mirror supported actions and continuously align scrolling.</small></span>
             </label>
           </section>
 
           <section class="option-section protection-section">
             <div class="section-title">
               <span class="section-number">03</span>
-              <div>
-                <h2>Content filter</h2>
-                <p>Block common advertising and tracking requests.</p>
-              </div>
+              <div><h2>Ad filter <span class="beta-badge">Beta</span></h2><p>May interfere with sign-in, media, checkout, or interactive page controls.</p></div>
             </div>
-
             <label class="toggle-card protection-toggle">
               <input id="setup-adblock" type="checkbox" checked />
-              <span>
-                <strong>Filter ads and trackers</strong>
-                <small id="protection-detail">Reading filter state…</small>
-              </span>
+              <span><strong>Filter ads and trackers</strong><small id="protection-detail">Reading filter state…</small></span>
             </label>
-            <p class="compatibility-note">Turning filtering off can improve compatibility on sites that block filtered sessions.</p>
+            <p class="compatibility-note">Turn it off only when a website refuses to load or behaves incorrectly.</p>
+          </section>
+
+          <section class="option-section theme-section">
+            <div class="section-title">
+              <span class="section-number">04</span>
+              <div><h2>Interface palette</h2><p>Choose the tone used by Conduit’s controls and settings.</p></div>
+            </div>
+            <div class="theme-grid" role="radiogroup" aria-label="Interface palette">
+              <label class="theme-card mineral-theme"><input type="radio" name="conduit-theme" value="mineral" checked /><span class="theme-swatch"></span><strong>Mineral</strong><small>Indigo and teal</small></label>
+              <label class="theme-card graphite-theme"><input type="radio" name="conduit-theme" value="graphite" /><span class="theme-swatch"></span><strong>Graphite</strong><small>Steel and cobalt</small></label>
+              <label class="theme-card dune-theme"><input type="radio" name="conduit-theme" value="dune" /><span class="theme-swatch"></span><strong>Dune</strong><small>Sand and rust</small></label>
+              <label class="theme-card moss-theme"><input type="radio" name="conduit-theme" value="moss" /><span class="theme-swatch"></span><strong>Moss</strong><small>Olive and copper</small></label>
+            </div>
           </section>
 
           <section class="option-section reset-section">
             <div class="section-title">
-              <span class="section-number">04</span>
-              <div>
-                <h2>Reset a pane</h2>
-                <p>Clear its session, storage, cache, and route identity.</p>
-              </div>
+              <span class="section-number">05</span>
+              <div><h2>Reset a pane</h2><p>Clear its session, storage, cache, and route identity.</p></div>
             </div>
-
             <div class="screen-reset-grid">
               <button class="screen-reset-button" data-screen="1"><strong>Pane 1</strong><small>Reset leader</small></button>
               <button class="screen-reset-button" data-screen="2"><strong>Pane 2</strong><small>Reset follower</small></button>
               <button class="screen-reset-button" data-screen="3"><strong>Pane 3</strong><small>Reset follower</small></button>
               <button class="screen-reset-button" data-screen="4"><strong>Pane 4</strong><small>Reset follower</small></button>
+              <button class="screen-reset-button" data-screen="5"><strong>Pane 5</strong><small>Reset follower</small></button>
+              <button class="screen-reset-button" data-screen="6"><strong>Pane 6</strong><small>Reset follower</small></button>
+              <button class="screen-reset-button" data-screen="7"><strong>Pane 7</strong><small>Reset follower</small></button>
+              <button class="screen-reset-button" data-screen="8"><strong>Pane 8</strong><small>Reset follower</small></button>
             </div>
           </section>
         </div>
 
         <aside id="setup-progress-panel" class="setup-progress-panel">
-          <div class="panel-heading">
-            <div>
-              <p id="progress-eyebrow" class="eyebrow">Apply queue</p>
-              <h2 id="progress-title">Idle</h2>
-            </div>
-            <span class="live-badge"><i></i> live</span>
-            <span id="diagnostic-issue-count" class="issue-count legacy-diagnostic">All good</span>
-          </div>
-
-          <div class="progress-meter" aria-label="Operation progress">
-            <div class="progress-meter-track">
-              <div id="progress-meter-fill" class="progress-meter-fill"></div>
-            </div>
-            <div class="progress-meter-labels">
-              <strong id="progress-percent">0%</strong>
-              <span id="progress-current">No pending changes</span>
-            </div>
-          </div>
-
+          <div class="panel-heading"><div><p id="progress-eyebrow" class="eyebrow">Apply queue</p><h2 id="progress-title">Idle</h2></div><span id="diagnostic-issue-count" class="issue-count legacy-diagnostic">All good</span></div>
+          <div class="progress-meter" aria-label="Operation progress"><div class="progress-meter-track"><div id="progress-meter-fill" class="progress-meter-fill"></div></div><div class="progress-meter-labels"><strong id="progress-percent">0%</strong><span id="progress-current">No pending changes</span></div></div>
           <ol class="progress-list">
-            <li id="progress-step-0" class="progress-step">
-              <span class="step-icon">1</span>
-              <span><strong>Layout and filter</strong><small>Waiting</small></span>
-            </li>
-            <li id="progress-step-1" class="progress-step">
-              <span class="step-icon">2</span>
-              <span><strong>Route negotiation</strong><small>Waiting</small></span>
-            </li>
-            <li id="progress-step-2" class="progress-step">
-              <span class="step-icon">3</span>
-              <span><strong>Route verification</strong><small>Waiting</small></span>
-            </li>
-            <li id="progress-step-3" class="progress-step">
-              <span class="step-icon">4</span>
-              <span><strong>Pane linking</strong><small>Waiting</small></span>
-            </li>
+            <li id="progress-step-0" class="progress-step"><span class="step-icon">1</span><span><strong>Layout and filter</strong><small>Waiting</small></span></li>
+            <li id="progress-step-1" class="progress-step"><span class="step-icon">2</span><span><strong>Route negotiation</strong><small>Waiting</small></span></li>
+            <li id="progress-step-2" class="progress-step"><span class="step-icon">3</span><span><strong>Route verification</strong><small>Waiting</small></span></li>
+            <li id="progress-step-3" class="progress-step"><span class="step-icon">4</span><span><strong>Pane linking</strong><small>Waiting</small></span></li>
           </ol>
-
-          <div class="trace-heading">
-            <p class="eyebrow">Session trace</p>
-            <span>event / result</span>
-          </div>
+          <div class="trace-heading"><p class="eyebrow">Conduit ledger</p><span>token / signal</span></div>
           <div id="event-stream" class="event-stream" role="log" aria-live="polite"></div>
-
           <button id="clear-diagnostics" class="legacy-diagnostic" hidden>Clear</button>
           <div id="diagnostic-console" class="legacy-diagnostic" hidden></div>
           <div id="setup-error" class="setup-error" hidden></div>
@@ -283,9 +240,12 @@
       </div>
 
       <footer class="setup-footer">
-        <button id="setup-back" class="secondary-button" hidden>Back</button>
-        <button id="continue-direct" class="secondary-button" hidden>Use standard route</button>
-        <button id="setup-launch" class="primary-button">Apply</button>
+        <p class="made-by">Made with <span aria-label="love">♥</span> by <a id="jujhar-link" href="https://github.com/jujharaujla">Jujhar</a></p>
+        <div class="setup-footer-actions">
+          <button id="setup-back" class="secondary-button" hidden>Back</button>
+          <button id="continue-direct" class="secondary-button" hidden>Use standard route</button>
+          <button id="setup-launch" class="primary-button">Apply settings</button>
+        </div>
       </footer>
     </section>
   </div>
@@ -293,5 +253,7 @@
   <script src="interaction-guard.js"></script>
   <script src="app-v11.js"></script>
   <script src="ui-v14.js"></script>
+  <script src="ui-v15.js"></script>
+  <script src="ui-v16.js"></script>
 </body>
 </html>
