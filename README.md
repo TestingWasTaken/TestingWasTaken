@@ -1,20 +1,17 @@
-# Conduit 0.15
+# Conduit 0.16
 
-Conduit is a linked multi-pane Electron browser. Pane 1 can lead supported activity across the remaining panes, while each pane keeps an isolated browser session and can optionally use an isolated network route.
+Conduit is a linked one-to-eight-pane Electron browser. Pane 1 can lead supported activity across the remaining panes, while each pane keeps an isolated browser session and can optionally use an isolated network route.
 
-## What changed in 0.15
+## What changed in 0.16
 
-- Expanded the workspace from four to eight real browser panes.
-- Added 3×2 and 4×2 workspace matrices for five to eight panes.
-- Added an in-app performance warning because additional Electron sessions can increase memory use, battery drain, and interface lag.
-- Replaced jumpy follower scrolling with continuous controller sampling and eased follower motion.
-- Removed the permanent top-right linking status block and the Conduit subtitle.
-- Reworked Settings around a compact mineral-glass palette with slower entrance and exit motion.
-- Progress UI appears only while Conduit is applying, restarting, or resetting something.
-- Renamed the session trace to the **Conduit ledger** and removed generic request/ready/connected noise.
-- Ledger entries use focused signal names such as MATRIX, EGRESS, MIRROR, ADFILTER, COMMIT, and FAULT.
-- Verified IP results appear as individual pane entries, with location details when the optional lookup succeeds.
-- Marked the built-in ad filter as beta because filtering can interfere with some websites.
+- Made all eight pane choices and reset controls native to the interface instead of injecting panes 5–8 after startup.
+- Fixed the Settings footer so Apply settings remains fully visible at every supported window size.
+- Added four persistent interface palettes: Mineral, Graphite, Dune, and Moss.
+- Changed the Settings heading from Workspace to Settings.
+- Replaced the dramatic blur/zoom transition with a shorter fade-and-slide motion.
+- Increased scroll sampling frequency and moved follower scrolling onto a continuous local animation loop.
+- Added “Made with ♥ by Jujhar” with a secure external link to the author’s GitHub profile.
+- Kept the 3×2 and 4×2 workspace matrices for five to eight panes, with a performance warning for heavier layouts.
 
 ## Install on macOS
 
@@ -36,11 +33,9 @@ After dependencies are installed, you can also double-click `Start Conduit.comma
 - **Follow pane 1:** enable or disable linked activity.
 - **Ad filter:** enable or disable the beta advertising and tracker request filter.
 
-Each change opens the progress sheet, applies the complete configuration, and returns browser access only after the operation finishes.
-
 ## Pane linking
 
-When **Follow pane 1** is enabled, Conduit mirrors supported clicks, typing, selections, navigation, and scrolling from Pane 1 to the visible follower panes. Window scrolling is sampled continuously and followers ease toward the latest position.
+When **Follow pane 1** is enabled, Conduit mirrors supported clicks, typing, selections, navigation, and scrolling from Pane 1 to visible follower panes. Window scrolling is sampled continuously and each follower eases toward the newest controller position.
 
 CAPTCHA and security-challenge interfaces are not mirrored. Password fields, file uploads, payments, purchases, votes, account deletion, and similar sensitive actions are excluded.
 
