@@ -12,12 +12,17 @@
       },
       set(value) {
         let next = value == null ? '' : String(value);
-        if (this?.id === 'setup-eyebrow' && /^Conduit 0\.1[45]/.test(next)) next = 'Conduit 0.16';
+        if (this?.id === 'setup-eyebrow' && /^Conduit 0\.1[456]/.test(next)) next = 'Conduit 0.17';
         if (descriptor.get.call(this) === next) return;
         descriptor.set.call(this, next);
       },
     });
   }
+
+  const styleLink = document.createElement('link');
+  styleLink.rel = 'stylesheet';
+  styleLink.href = 'styles-v17.css';
+  document.head.appendChild(styleLink);
 
   window.addEventListener('DOMContentLoaded', () => {
     const toolbar = document.querySelector('.toolbar');
@@ -60,5 +65,11 @@
         control.disabled = false;
       });
     }, 2000);
+  }, { once: true });
+
+  window.addEventListener('load', () => {
+    const script = document.createElement('script');
+    script.src = 'ui-v17.js';
+    document.body.appendChild(script);
   }, { once: true });
 })();
