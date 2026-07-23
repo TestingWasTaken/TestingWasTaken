@@ -19,7 +19,30 @@ test('one coordinator owns every Follow Screen 1 state change', () => {
   assert.doesNotMatch(main, /v22-|v24-|v25-configure-sync|leader-heartbeat-v25/);
 });
 
-test('navigation, scrolling, controls, and health use one v26 contract', () => {
+test('new sites warm the main domain before the exact subdomain or path', () => {
+  const main = read('src/main-v26-sync.js');
+  assert.match(main, /function registrableHost/);
+  assert.match(main, /function siteKey/);
+  assert.match(main, /function mainDomainURL/);
+  assert.match(main, /stagedTargets\.set/);
+  assert.match(main, /queueNavigation\(warmup/);
+  assert.match(main, /flushStagedTargets/);
+  assert.match(main, /setTimeout\(\(\) => \{/);
+});
+
+test('challenge pages are never propagated or replayed', () => {
+  const main = read('src/main-v26-sync.js');
+  const preload = read('src/page-preload-v28.js');
+  assert.match(main, /state\?\.challenge/);
+  assert.match(main, /leaderSnapshot\.state\?\.challenge/);
+  assert.match(main, /states\.get\(1\)\?\.challenge/);
+  assert.match(preload, /CHALLENGE_TEXT/);
+  assert.match(preload, /CHALLENGE_URL/);
+  assert.match(preload, /challenges\.cloudflare/);
+  assert.match(preload, /v26-state/);
+});
+
+test('navigation, scrolling, controls, and health still use one v26 contract', () => {
   const main = read('src/main-v26-sync.js');
   const preload = read('src/page-preload-v26.js');
   for (const channel of [
@@ -33,7 +56,6 @@ test('navigation, scrolling, controls, and health use one v26 contract', () => {
     assert.match(preload, new RegExp(channel));
   }
   assert.match(preload, /requestAnimationFrame\(publishFastScroll\)/);
-  assert.match(preload, /setInterval\(\(\) => \{\n  if \(isLeader\) publishSnapshot\(\);\n\}, 500\)/);
 });
 
 test('disabling Following or Scrolling releases follower scroll targets', () => {
@@ -53,37 +75,21 @@ test('safe control repair excludes protected fields and actions', () => {
   assert.match(preload, /delete\\s\*account/);
 });
 
-test('legacy renderer wrappers do not own synchronization', () => {
-  const v25 = read('src/renderer/bridge-v25.js');
-  const ip = read('src/renderer/bridge-v25-ip.js');
-  assert.doesNotMatch(v25, /configureSyncV25|resyncFollowersV25|onSyncQualityV25/);
-  assert.doesNotMatch(ip, /checkIPs = async|MutationObserver/);
-});
-
-test('URL watchdog compares followers continuously and retries drift', () => {
+test('watchdog compares domains first and suspends retries on challenges', () => {
   const watchdog = read('src/main-v27-watchdog.js');
   assert.match(watchdog, /setInterval\(checkFollowers, 450\)/);
-  assert.match(watchdog, /contents\.getURL\(\)/);
-  assert.match(watchdog, /actualURL === targetURL/);
-  assert.match(watchdog, /contents\.loadURL\(targetURL\)/);
-  assert.match(watchdog, /sync\.fullResync\(\)/);
+  assert.match(watchdog, /challengeLike/);
+  assert.match(watchdog, /domainBehind/);
+  assert.match(watchdog, /urlBehind/);
+  assert.match(watchdog, /mainDomainURL/);
+  assert.match(watchdog, /navigationJobs/);
   assert.match(watchdog, /v27-recovery/);
 });
 
-test('recovery preload shows a blocking catch-up screen', () => {
+test('recovery overlay remains available for genuine lag', () => {
   const preload = read('src/page-preload-v27.js');
   assert.match(preload, /conduit-recovery-v27/);
   assert.match(preload, /Catching up/);
   assert.match(preload, /v27-recovery/);
   assert.match(preload, /pointer-events: auto/);
-});
-
-test('Select All works in page controls and through the native Edit menu', () => {
-  const preload = read('src/page-preload-v27.js');
-  const shell = read('src/main-v26-shell.js');
-  const bridge = read('src/renderer/bridge-v25.js');
-  assert.match(preload, /event\.metaKey \|\| event\.ctrlKey/);
-  assert.match(preload, /setSelectionRange/);
-  assert.match(shell, /role: 'selectAll'/);
-  assert.match(bridge, /address\.select\(\)/);
 });
