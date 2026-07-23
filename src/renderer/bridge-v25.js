@@ -21,6 +21,7 @@
   let currentPolicy = { navigation: false, scrolling: false, typing: false, clicks: false };
   let currentFollowing = false;
   let patchQueued = false;
+  let lastConfiguration = '';
 
   function anyPolicy(policy = {}) {
     return Object.values(policy).some(Boolean);
@@ -50,12 +51,16 @@
   }
 
   function configure(extra = {}) {
-    return api.configureSyncV25({
+    const payload = {
       visibleCount: Number(latestState?.screenCount || latestHealth?.visiblePaneCount || 4),
       enabled: currentFollowing && anyPolicy(currentPolicy),
       policy: { ...currentPolicy },
       ...extra,
-    }).catch(() => null);
+    };
+    const signature = JSON.stringify(payload);
+    if (!extra.pause && signature === lastConfiguration) return Promise.resolve(null);
+    lastConfiguration = signature;
+    return api.configureSyncV25(payload).catch(() => null);
   }
 
   api.getWorkspace = async () => {
@@ -93,6 +98,7 @@
       clicks: policy?.clicks === true,
     };
     const result = await original.setPolicy(currentPolicy);
+    lastConfiguration = '';
     await configure();
     if (currentFollowing && anyPolicy(currentPolicy)) await api.resyncFollowersV25().catch(() => {});
     return result;
@@ -100,6 +106,7 @@
 
   api.setFollowing = async (enabled) => {
     currentFollowing = Boolean(enabled) && anyPolicy(currentPolicy);
+    lastConfiguration = '';
     await configure({ enabled: currentFollowing });
     const result = await original.setFollowing(currentFollowing);
     if (currentFollowing) await api.resyncFollowersV25().catch(() => {});
@@ -110,6 +117,7 @@
   api.pausePane = async (pane, paused) => {
     const result = await original.pausePane(pane, paused);
     await configure({ pause: { pane: Number(pane), paused: Boolean(paused) } });
+    lastConfiguration = '';
     if (!paused && currentFollowing) await api.resyncFollowersV25().catch(() => {});
     return result;
   };
