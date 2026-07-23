@@ -42,7 +42,7 @@
             <option value="1">1</option>
             <option value="2">2</option>
             <option value="3">3</option>
-            <option value="4">4</option>
+            <option value="4" selected>4</option>
           </select>
         </label>
 
@@ -53,7 +53,7 @@
             <option value="0.67">67%</option>
             <option value="0.8">80%</option>
             <option value="0.9">90%</option>
-            <option value="1">100%</option>
+            <option value="1" selected>100%</option>
             <option value="1.1">110%</option>
             <option value="1.25">125%</option>
             <option value="1.5">150%</option>
@@ -63,7 +63,7 @@
         <label class="quick-select route-control">
           <span>Route</span>
           <select id="quick-network" aria-label="Connection route">
-            <option value="direct">Standard</option>
+            <option value="direct" selected>Standard</option>
             <option value="tor">Isolated</option>
           </select>
         </label>
@@ -103,7 +103,7 @@
     <section id="setup-dialog" class="setup-dialog" role="dialog" aria-modal="true" aria-labelledby="setup-title">
       <header class="setup-header">
         <div>
-          <p id="setup-eyebrow" class="eyebrow">Conduit 0.14</p>
+          <p id="setup-eyebrow" class="eyebrow">Conduit 0.14.1</p>
           <h1 id="setup-title">Workspace</h1>
           <p id="setup-intro" class="setup-intro">Tune the workspace, routes, filtering, and pane resets.</p>
         </div>
@@ -290,6 +290,7 @@
     </section>
   </div>
 
+  <script src="interaction-guard.js"></script>
   <script src="app-v11.js"></script>
   <script src="ui-v14.js"></script>
 </body>
