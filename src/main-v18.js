@@ -7,9 +7,12 @@ const panes = new Map();
 const states = new Map();
 const paused = new Set();
 const navigationLocks = new Map();
+const destroyHooks = new Set();
+
 let visibleCount = 4;
 let following = false;
 let sequence = 0;
+let broadcastTimer = null;
 let policy = { navigation: true, clicks: true, typing: true, scrolling: true };
 
 const live = (contents) => Boolean(contents && !contents.isDestroyed());
@@ -56,6 +59,7 @@ function snapshot() {
   const visiblePolicy = following
     ? { ...policy }
     : { navigation: false, clicks: false, typing: false, scrolling: false };
+
   return {
     followingEnabled: following,
     policy: visiblePolicy,
@@ -68,17 +72,26 @@ function snapshot() {
   };
 }
 
-function broadcast() {
+function broadcastNow() {
+  broadcastTimer = null;
   windowForUI()?.webContents.send('pane-health-v18', snapshot());
 }
 
+function scheduleBroadcast(delay = 90) {
+  clearTimeout(broadcastTimer);
+  broadcastTimer = setTimeout(broadcastNow, delay);
+}
+
 function sendPolicy() {
-  for (const contents of panes.values()) if (live(contents)) contents.send('sync-policy-v18', policy);
+  for (const contents of panes.values()) {
+    if (live(contents)) contents.send('sync-policy-v18', policy);
+  }
 }
 
 function followLeaderURL(state) {
   const targetURL = String(state?.url || '');
   if (!targetURL || !/^(https?:|file:|relay:)/i.test(targetURL)) return;
+
   for (const [pane, contents] of followers()) {
     if (states.get(pane)?.challenge || contents.getURL() === targetURL) continue;
     const lock = navigationLocks.get(pane);
@@ -88,27 +101,48 @@ function followLeaderURL(state) {
   }
 }
 
-ipcMain.on('register-pane-v18', (event, payload) => {
+function attachDestroyHook(pane, contents) {
+  if (!live(contents) || destroyHooks.has(contents.id)) return;
+  destroyHooks.add(contents.id);
+  contents.once('destroyed', () => {
+    destroyHooks.delete(contents.id);
+    if (panes.get(pane)?.id === contents.id) panes.delete(pane);
+    states.delete(pane);
+    navigationLocks.delete(pane);
+    scheduleBroadcast(20);
+  });
+}
+
+function registerPane(event, payload) {
   const pane = Number(payload?.paneNumber);
   if (!Number.isInteger(pane) || pane < 1 || pane > MAX_PANES) return;
   panes.set(pane, event.sender);
+  attachDestroyHook(pane, event.sender);
   event.sender.send('sync-policy-v18', policy);
   event.sender.send('pane-paused-v18', paused.has(pane));
-  broadcast();
-});
+  scheduleBroadcast(20);
+}
+
+ipcMain.on('register-pane-v18', registerPane);
 
 ipcMain.on('pane-state-v18', (event, payload) => {
   const pane = Number(payload?.paneNumber);
   if (!Number.isInteger(pane) || pane < 1 || pane > MAX_PANES) return;
+
   panes.set(pane, event.sender);
+  attachDestroyHook(pane, event.sender);
   states.set(pane, { ...(payload?.state || {}), updatedAt: Date.now() });
+
   if (following && pane === 1) {
     if (policy.navigation) followLeaderURL(payload.state);
     if (policy.scrolling) {
-      for (const [_number, contents] of followers()) contents.send('leader-scroll-v18', payload.state || {});
+      for (const [_number, contents] of followers()) {
+        contents.send('leader-scroll-v18', payload.state || {});
+      }
     }
   }
-  broadcast();
+
+  scheduleBroadcast();
 });
 
 ipcMain.on('leader-action-v18', (event, payload) => {
@@ -116,15 +150,22 @@ ipcMain.on('leader-action-v18', (event, payload) => {
   const action = payload?.action;
   const kind = category(action);
   if (!kind || policy[kind] !== true) return;
+
   const targets = followers().filter(([pane]) => !states.get(pane)?.challenge);
-  const actionId = `c20-${++sequence}`;
-  for (const [_pane, contents] of targets) contents.send('replay-action-v18', { actionId, action });
+  const actionId = `c21-${++sequence}`;
+  for (const [_pane, contents] of targets) {
+    contents.send('replay-action-v18', { actionId, action });
+  }
 });
 
 ipcMain.handle('v18-set-following', (_event, enabled) => {
   following = Boolean(enabled) && Object.values(policy).some(Boolean);
-  if (following) panes.get(1)?.send('request-pane-state-v18');
-  broadcast();
+  if (following) {
+    const leader = states.get(1);
+    if (policy.navigation && leader) followLeaderURL(leader);
+    panes.get(1)?.send('request-pane-state-v18');
+  }
+  broadcastNow();
   return { ok: true, enabled: following, health: snapshot() };
 });
 
@@ -138,28 +179,47 @@ ipcMain.handle('v18-set-policy', (_event, next) => {
   if (!Object.values(policy).some(Boolean)) following = false;
   sendPolicy();
   if (following) panes.get(1)?.send('request-pane-state-v18');
-  broadcast();
+  broadcastNow();
   return { ok: true, policy: { ...policy }, followingEnabled: following };
 });
 
 ipcMain.handle('v18-set-pane-count', (_event, count) => {
   visibleCount = Math.max(1, Math.min(MAX_PANES, Number(count) || 1));
-  for (const pane of [...paused]) if (pane > visibleCount) paused.delete(pane);
-  broadcast();
+  for (const pane of [...paused]) {
+    if (pane > visibleCount) paused.delete(pane);
+  }
+  broadcastNow();
   return { ok: true, visiblePaneCount: visibleCount };
 });
 
 ipcMain.handle('v18-set-pane-paused', (_event, value, shouldPause) => {
   const pane = Number(value);
-  if (!Number.isInteger(pane) || pane < 2 || pane > visibleCount) return { ok: false, error: 'Choose a visible follower pane.' };
-  if (shouldPause) paused.add(pane); else paused.delete(pane);
+  if (!Number.isInteger(pane) || pane < 2 || pane > visibleCount) {
+    return { ok: false, error: 'Choose a visible follower pane.' };
+  }
+  if (shouldPause) paused.add(pane);
+  else paused.delete(pane);
   panes.get(pane)?.send('pane-paused-v18', Boolean(shouldPause));
   if (!shouldPause && following) panes.get(1)?.send('request-pane-state-v18');
-  broadcast();
+  broadcastNow();
   return { ok: true, paneNumber: pane, paused: Boolean(shouldPause) };
 });
 
 ipcMain.handle('v18-get-health', () => snapshot());
+
+globalThis.__conduitCoordinatorV21 = {
+  forgetPane(paneNumber) {
+    const pane = Number(paneNumber);
+    panes.delete(pane);
+    states.delete(pane);
+    navigationLocks.delete(pane);
+    scheduleBroadcast(10);
+  },
+  requestPane(paneNumber) {
+    const contents = panes.get(Number(paneNumber));
+    if (live(contents)) contents.send('request-pane-state-v18');
+  },
+};
 
 function command(name, payload = null) {
   windowForUI()?.webContents.send('menu-command-v18', { command: name, payload });
@@ -168,23 +228,51 @@ function command(name, payload = null) {
 app.whenReady().then(() => {
   const isMac = process.platform === 'darwin';
   const template = [
-    ...(isMac ? [{ label: 'Conduit', submenu: [
-      { label: 'About Conduit', click: () => dialog.showMessageBox({ type: 'info', title: 'About Conduit', message: 'Conduit', detail: 'A linked multi-pane browser made by Jujhar.' }) },
-      { type: 'separator' },
-      { label: 'Settings…', accelerator: 'CommandOrControl+,', click: () => command('settings') },
-      { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' },
-    ] }] : []),
-    { label: 'File', submenu: [
-      { label: 'Focus Address', accelerator: 'CommandOrControl+L', click: () => command('focus-address') },
-      { type: 'separator' }, isMac ? { role: 'close' } : { role: 'quit' },
-    ] },
-    { label: 'View', submenu: [
-      { label: 'Reload Active Pane', accelerator: 'CommandOrControl+R', click: () => command('reload-active') },
-      { label: 'Reload Every Pane', accelerator: 'CommandOrControl+Shift+R', click: () => command('reload-all') },
-      { type: 'separator' },
-      ...Array.from({ length: 8 }, (_unused, index) => ({ label: `Focus Pane ${index + 1}`, accelerator: `CommandOrControl+${index + 1}`, click: () => command('focus-pane', index + 1) })),
-      { type: 'separator' }, { role: 'togglefullscreen' },
-    ] },
+    ...(isMac ? [{
+      label: 'Conduit',
+      submenu: [
+        {
+          label: 'About Conduit',
+          click: () => dialog.showMessageBox({
+            type: 'info',
+            title: 'About Conduit',
+            message: 'Conduit',
+            detail: 'A linked multi-pane browser made by Jujhar.',
+          }),
+        },
+        { type: 'separator' },
+        { label: 'Settings…', accelerator: 'CommandOrControl+,', click: () => command('settings') },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    }] : []),
+    {
+      label: 'File',
+      submenu: [
+        { label: 'Focus Address', accelerator: 'CommandOrControl+L', click: () => command('focus-address') },
+        { type: 'separator' },
+        isMac ? { role: 'close' } : { role: 'quit' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { label: 'Reload Active Pane', accelerator: 'CommandOrControl+R', click: () => command('reload-active') },
+        { label: 'Reload Every Pane', accelerator: 'CommandOrControl+Shift+R', click: () => command('reload-all') },
+        { type: 'separator' },
+        ...Array.from({ length: 8 }, (_unused, index) => ({
+          label: `Focus Pane ${index + 1}`,
+          accelerator: `CommandOrControl+${index + 1}`,
+          click: () => command('focus-pane', index + 1),
+        })),
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
     { role: 'windowMenu' },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -195,7 +283,8 @@ app.on('browser-window-created', () => {
   states.clear();
   paused.clear();
   navigationLocks.clear();
-  setTimeout(broadcast, 700);
+  destroyHooks.clear();
+  setTimeout(broadcastNow, 700);
 });
 
-require('./workspace-v18');
+require('./workspace-v21');
