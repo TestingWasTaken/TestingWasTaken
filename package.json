@@ -1,13 +1,13 @@
 {
   "name": "conduit-browser",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "private": true,
-  "description": "A focused one-to-eight-pane Electron browser with one sync engine, pane topology, selective following, focus and pause controls, saved workspaces, session restore, and a restrained Mac utility interface.",
+  "description": "A focused one-to-eight-pane Electron browser with one sync engine, selective following, explicit light and dark appearance modes, translucent controls, saved workspaces, and a simple local home page.",
   "main": "src/main-entry-v18.js",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check src/main-entry-v18.js && node --check src/main-v18.js && node --check src/workspace-v18.js && node --check src/preload-v18.js && node --check src/page-preload-v18.js && node --check src/renderer/state-guard-v18.js && node --check src/renderer/app-v18.js && node --check src/adblocker.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && npm test"
+    "check": "node --check src/main-entry-v18.js && node --check src/main-v18.js && node --check src/workspace-v18.js && node --check src/preload-v18.js && node --check src/page-preload-v18.js && node --check src/renderer/appearance-v19.js && node --check src/renderer/state-guard-v18.js && node --check src/renderer/app-v18.js && node --check src/adblocker.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && npm test"
   },
   "devDependencies": {
     "electron": "^37.2.3"
