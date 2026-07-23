@@ -34,7 +34,18 @@ contextBridge.exposeInMainWorld('relay', {
   getAdBlockStatus: () => ipcRenderer.invoke('get-adblock-status'),
   setAdBlockEnabled: (enabled) => ipcRenderer.invoke('set-adblock-enabled', enabled),
 
-  onState: (callback) => ipcRenderer.on('browser-state', (_event, state) => callback(state)),
+  onState: (callback) => ipcRenderer.on('browser-state', (_event, state) => {
+    if (!state?.syncRequested || state.networkBusy || state.setupVisible) {
+      callback(state);
+      return;
+    }
+
+    callback({
+      ...state,
+      syncReady: true,
+      status: 'Screen 1 control active',
+    });
+  }),
   onLayout: (callback) => ipcRenderer.on('layout-state', (_event, state) => callback(state)),
   onOperationProgress: (callback) => ipcRenderer.on('operation-progress', (_event, progress) => callback(progress)),
   onDiagnostic: (callback) => ipcRenderer.on('diagnostic-log', (_event, entry) => callback(entry)),
