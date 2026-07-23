@@ -25,6 +25,7 @@ function followers() {
 }
 
 function category(action) {
+  if (action?.kind === 'navigate') return 'navigation';
   if (action?.kind === 'click') return 'clicks';
   if (action?.kind === 'input' || action?.kind === 'key') return 'typing';
   if (action?.kind === 'scroll-window') return 'scrolling';
@@ -74,7 +75,7 @@ function sendPolicy() {
 
 function followLeaderURL(state) {
   const targetURL = String(state?.url || '');
-  if (!targetURL || !/^https?:|^file:/i.test(targetURL)) return;
+  if (!targetURL || !/^(https?:|file:|relay:)/i.test(targetURL)) return;
   for (const [pane, contents] of followers()) {
     if (states.get(pane)?.challenge || contents.getURL() === targetURL) continue;
     const lock = navigationLocks.get(pane);
@@ -113,12 +114,12 @@ ipcMain.on('leader-action-v18', (event, payload) => {
   const kind = category(action);
   if (!kind || policy[kind] !== true) return;
   const targets = followers().filter(([pane]) => !states.get(pane)?.challenge);
-  const actionId = `c18-${++sequence}`;
+  const actionId = `c20-${++sequence}`;
   for (const [_pane, contents] of targets) contents.send('replay-action-v18', { actionId, action });
 });
 
 ipcMain.handle('v18-set-following', (_event, enabled) => {
-  following = Boolean(enabled);
+  following = Boolean(enabled) && Object.values(policy).some(Boolean);
   if (following) panes.get(1)?.send('request-pane-state-v18');
   broadcast();
   return { ok: true, enabled: following, health: snapshot() };
@@ -126,14 +127,16 @@ ipcMain.handle('v18-set-following', (_event, enabled) => {
 
 ipcMain.handle('v18-set-policy', (_event, next) => {
   policy = {
-    navigation: next?.navigation !== false,
-    clicks: next?.clicks !== false,
-    typing: next?.typing !== false,
-    scrolling: next?.scrolling !== false,
+    navigation: next?.navigation === true,
+    clicks: next?.clicks === true,
+    typing: next?.typing === true,
+    scrolling: next?.scrolling === true,
   };
+  if (!Object.values(policy).some(Boolean)) following = false;
   sendPolicy();
+  if (following) panes.get(1)?.send('request-pane-state-v18');
   broadcast();
-  return { ok: true, policy: { ...policy } };
+  return { ok: true, policy: { ...policy }, followingEnabled: following };
 });
 
 ipcMain.handle('v18-set-pane-count', (_event, count) => {
@@ -170,7 +173,6 @@ app.whenReady().then(() => {
     ] }] : []),
     { label: 'File', submenu: [
       { label: 'Focus Address', accelerator: 'CommandOrControl+L', click: () => command('focus-address') },
-      { label: 'Save Workspace Preset', accelerator: 'CommandOrControl+Shift+S', click: () => command('save-preset') },
       { type: 'separator' }, isMac ? { role: 'close' } : { role: 'quit' },
     ] },
     { label: 'View', submenu: [
