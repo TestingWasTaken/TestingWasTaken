@@ -1,3 +1,45 @@
 'use strict';
 
-// Synchronization is handled exclusively by bridge-v24.js and the v26 coordinator.
+(() => {
+  const api = window.conduit;
+  if (!api) return;
+
+  function install() {
+    const bookmark = document.querySelector('#bookmark-checkmyip');
+    if (bookmark) bookmark.title = 'Open browserleaks.com/ip';
+
+    const locationLabel = [...document.querySelectorAll('.check-row strong')]
+      .find((element) => element.textContent.trim() === 'Check IP address and location');
+    if (locationLabel && !locationLabel.querySelector('.beta-tag')) {
+      const beta = document.createElement('span');
+      beta.className = 'beta-tag';
+      beta.textContent = '[BETA]';
+      beta.style.marginLeft = '5px';
+      locationLabel.append(beta);
+    }
+  }
+
+  document.addEventListener('click', (event) => {
+    const bookmark = event.target instanceof Element
+      ? event.target.closest('#bookmark-checkmyip')
+      : null;
+    if (!bookmark) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    api.navigate('https://browserleaks.com/ip');
+  }, true);
+
+  document.addEventListener('keydown', (event) => {
+    const address = document.querySelector('#address');
+    if (event.target !== address || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'a') return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    address.select();
+  }, true);
+
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', install, { once: true });
+  } else {
+    install();
+  }
+})();
