@@ -33,6 +33,10 @@ contextBridge.exposeInMainWorld('conduit', {
   pausePane: (pane, paused) => ipcRenderer.invoke('v18-set-pane-paused', pane, paused),
   getHealth: () => ipcRenderer.invoke('v18-get-health'),
 
+  syncV22State: (state) => ipcRenderer.invoke('v22-sync-state', state),
+  resyncAll: () => ipcRenderer.invoke('v22-resync-all'),
+  forgetPaneV22: (pane) => ipcRenderer.invoke('v22-forget-pane', pane),
+
   getAdBlock: () => ipcRenderer.invoke('v18-get-adblock'),
   setAdBlock: (enabled) => ipcRenderer.invoke('v18-set-adblock', enabled),
   openExternal: (url) => ipcRenderer.invoke('v18-open-external', url),
