@@ -4,240 +4,175 @@ const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron');
 
 const MAX_PANES = 8;
 const panes = new Map();
-const paneStates = new Map();
-const pausedPanes = new Set();
-const pendingActions = new Map();
+const states = new Map();
+const paused = new Set();
+let visibleCount = 4;
+let following = false;
+let sequence = 0;
+let policy = { navigation: true, clicks: true, typing: true, scrolling: true };
 
-let visiblePaneCount = 4;
-let followingEnabled = false;
-let actionSequence = 0;
-let policy = {
-  navigation: true,
-  clicks: true,
-  typing: true,
-  scrolling: true,
-};
+const live = (contents) => Boolean(contents && !contents.isDestroyed());
+const windowForUI = () => BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()) || null;
 
-function live(contents) {
-  return Boolean(contents && !contents.isDestroyed());
-}
-
-function toolbarWindow() {
-  return BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()) || null;
-}
-
-function activeFollowers() {
+function followers() {
   const result = [];
-  for (let paneNumber = 2; paneNumber <= visiblePaneCount; paneNumber += 1) {
-    const contents = panes.get(paneNumber);
-    if (live(contents) && !pausedPanes.has(paneNumber)) result.push([paneNumber, contents]);
+  for (let pane = 2; pane <= visibleCount; pane += 1) {
+    const contents = panes.get(pane);
+    if (live(contents) && !paused.has(pane)) result.push([pane, contents]);
   }
   return result;
 }
 
-function classifyAction(action) {
-  if (!action) return '';
-  if (action.kind === 'click') return 'clicks';
-  if (action.kind === 'input' || action.kind === 'key') return 'typing';
-  if (action.kind === 'scroll-window') return 'scrolling';
+function category(action) {
+  if (action?.kind === 'click') return 'clicks';
+  if (action?.kind === 'input' || action?.kind === 'key') return 'typing';
+  if (action?.kind === 'scroll-window') return 'scrolling';
   return '';
 }
 
-function healthSnapshot() {
-  const leader = paneStates.get(1);
-  const rows = [];
-  for (let paneNumber = 1; paneNumber <= visiblePaneCount; paneNumber += 1) {
-    const state = paneStates.get(paneNumber);
-    const registered = live(panes.get(paneNumber));
-    const delta = leader && state
+function snapshot() {
+  const leader = states.get(1);
+  const rows = Array.from({ length: visibleCount }, (_unused, index) => {
+    const paneNumber = index + 1;
+    const state = states.get(paneNumber);
+    const scrollOffset = leader && state
       ? Math.round(Math.abs(Number(leader.scrollYRatio || 0) - Number(state.scrollYRatio || 0)) * 1000)
       : null;
-    rows.push({
+    return {
       paneNumber,
-      registered,
-      paused: pausedPanes.has(paneNumber),
+      registered: live(panes.get(paneNumber)),
+      paused: paused.has(paneNumber),
       loading: Boolean(state?.loading),
       challenge: Boolean(state?.challenge),
-      url: state?.url || '',
       title: state?.title || '',
-      scrollOffset: delta,
-      caughtUp: delta !== null && delta <= 8,
-    });
-  }
-
-  const followers = rows.slice(1);
+      url: state?.url || '',
+      scrollOffset,
+      caughtUp: scrollOffset !== null && scrollOffset <= 8,
+    };
+  });
+  const followerRows = rows.slice(1);
   return {
-    followingEnabled,
+    followingEnabled: following,
     policy: { ...policy },
-    visiblePaneCount,
+    visiblePaneCount: visibleCount,
     registeredCount: rows.filter((row) => row.registered).length,
-    connectedFollowers: followers.filter((row) => row.registered && !row.paused).length,
-    caughtUpFollowers: followers.filter((row) => row.registered && !row.paused && row.caughtUp).length,
-    pausedCount: followers.filter((row) => row.paused).length,
+    connectedFollowers: followerRows.filter((row) => row.registered && !row.paused).length,
+    caughtUpFollowers: followerRows.filter((row) => row.registered && !row.paused && row.caughtUp).length,
+    pausedCount: followerRows.filter((row) => row.paused).length,
     rows,
   };
 }
 
-function broadcastHealth() {
-  const window = toolbarWindow();
-  if (window) window.webContents.send('pane-health-v18', healthSnapshot());
+function broadcast() {
+  windowForUI()?.webContents.send('pane-health-v18', snapshot());
 }
 
 function sendPolicy() {
-  for (const contents of panes.values()) {
-    if (live(contents)) contents.send('sync-policy-v18', policy);
-  }
+  for (const contents of panes.values()) if (live(contents)) contents.send('sync-policy-v18', policy);
 }
 
-function registerPane(event, payload) {
-  const paneNumber = Number(payload?.paneNumber);
-  if (!Number.isInteger(paneNumber) || paneNumber < 1 || paneNumber > MAX_PANES) return;
-  panes.set(paneNumber, event.sender);
+ipcMain.on('register-pane-v18', (event, payload) => {
+  const pane = Number(payload?.paneNumber);
+  if (!Number.isInteger(pane) || pane < 1 || pane > MAX_PANES) return;
+  panes.set(pane, event.sender);
   event.sender.send('sync-policy-v18', policy);
-  event.sender.send('pane-paused-v18', pausedPanes.has(paneNumber));
-  broadcastHealth();
-}
+  event.sender.send('pane-paused-v18', paused.has(pane));
+  broadcast();
+});
 
-function acceptPaneState(event, payload) {
-  const paneNumber = Number(payload?.paneNumber);
-  if (!Number.isInteger(paneNumber) || paneNumber < 1 || paneNumber > MAX_PANES) return;
-  panes.set(paneNumber, event.sender);
-  paneStates.set(paneNumber, { ...(payload?.state || {}), updatedAt: Date.now() });
-
-  if (followingEnabled && paneNumber === 1 && policy.scrolling) {
-    for (const [_number, contents] of activeFollowers()) {
-      contents.send('leader-scroll-v18', payload.state || {});
-    }
+ipcMain.on('pane-state-v18', (event, payload) => {
+  const pane = Number(payload?.paneNumber);
+  if (!Number.isInteger(pane) || pane < 1 || pane > MAX_PANES) return;
+  panes.set(pane, event.sender);
+  states.set(pane, { ...(payload?.state || {}), updatedAt: Date.now() });
+  if (following && pane === 1 && policy.scrolling) {
+    for (const [_number, contents] of followers()) contents.send('leader-scroll-v18', payload.state || {});
   }
-  broadcastHealth();
-}
+  broadcast();
+});
 
-function forwardLeaderAction(event, payload) {
-  if (!followingEnabled || event.sender.id !== panes.get(1)?.id) return;
+ipcMain.on('leader-action-v18', (event, payload) => {
+  if (!following || event.sender.id !== panes.get(1)?.id) return;
   const action = payload?.action;
-  const category = classifyAction(action);
-  if (!category || policy[category] !== true) return;
-
-  const followers = activeFollowers().filter(([paneNumber]) => !paneStates.get(paneNumber)?.challenge);
-  if (!followers.length) return;
-  const actionId = `c18-${++actionSequence}`;
-  pendingActions.set(actionId, { expected: followers.length, received: 0, failed: 0, startedAt: Date.now() });
-  for (const [_paneNumber, contents] of followers) {
-    contents.send('replay-action-v18', { actionId, action });
-  }
-  setTimeout(() => {
-    pendingActions.delete(actionId);
-    broadcastHealth();
-  }, 1800);
-}
-
-ipcMain.on('register-pane-v18', registerPane);
-ipcMain.on('pane-state-v18', acceptPaneState);
-ipcMain.on('leader-action-v18', forwardLeaderAction);
-ipcMain.on('replay-result-v18', (_event, payload) => {
-  const pending = pendingActions.get(payload?.actionId);
-  if (!pending) return;
-  pending.received += 1;
-  if (payload?.result?.ok === false && !payload?.result?.skipped) pending.failed += 1;
-  if (pending.received >= pending.expected) pendingActions.delete(payload.actionId);
-  broadcastHealth();
+  const kind = category(action);
+  if (!kind || policy[kind] !== true) return;
+  const targets = followers().filter(([pane]) => !states.get(pane)?.challenge);
+  const actionId = `c18-${++sequence}`;
+  for (const [_pane, contents] of targets) contents.send('replay-action-v18', { actionId, action });
 });
 
 ipcMain.handle('v18-set-following', (_event, enabled) => {
-  followingEnabled = Boolean(enabled);
-  if (followingEnabled) panes.get(1)?.send('request-pane-state-v18');
-  broadcastHealth();
-  return { ok: true, enabled: followingEnabled, health: healthSnapshot() };
+  following = Boolean(enabled);
+  if (following) panes.get(1)?.send('request-pane-state-v18');
+  broadcast();
+  return { ok: true, enabled: following, health: snapshot() };
 });
 
-ipcMain.handle('v18-set-policy', (_event, nextPolicy) => {
+ipcMain.handle('v18-set-policy', (_event, next) => {
   policy = {
-    navigation: nextPolicy?.navigation !== false,
-    clicks: nextPolicy?.clicks !== false,
-    typing: nextPolicy?.typing !== false,
-    scrolling: nextPolicy?.scrolling !== false,
+    navigation: next?.navigation !== false,
+    clicks: next?.clicks !== false,
+    typing: next?.typing !== false,
+    scrolling: next?.scrolling !== false,
   };
   sendPolicy();
-  broadcastHealth();
+  broadcast();
   return { ok: true, policy: { ...policy } };
 });
 
 ipcMain.handle('v18-set-pane-count', (_event, count) => {
-  visiblePaneCount = Math.max(1, Math.min(MAX_PANES, Number(count) || 1));
-  for (const paneNumber of [...pausedPanes]) {
-    if (paneNumber > visiblePaneCount) pausedPanes.delete(paneNumber);
-  }
-  broadcastHealth();
-  return { ok: true, visiblePaneCount };
+  visibleCount = Math.max(1, Math.min(MAX_PANES, Number(count) || 1));
+  for (const pane of [...paused]) if (pane > visibleCount) paused.delete(pane);
+  broadcast();
+  return { ok: true, visiblePaneCount: visibleCount };
 });
 
-ipcMain.handle('v18-set-pane-paused', (_event, paneNumberValue, paused) => {
-  const paneNumber = Number(paneNumberValue);
-  if (!Number.isInteger(paneNumber) || paneNumber < 2 || paneNumber > visiblePaneCount) {
-    return { ok: false, error: 'Choose a visible follower pane.' };
-  }
-  if (paused) pausedPanes.add(paneNumber);
-  else pausedPanes.delete(paneNumber);
-  panes.get(paneNumber)?.send('pane-paused-v18', Boolean(paused));
-  broadcastHealth();
-  return { ok: true, paneNumber, paused: Boolean(paused) };
+ipcMain.handle('v18-set-pane-paused', (_event, value, shouldPause) => {
+  const pane = Number(value);
+  if (!Number.isInteger(pane) || pane < 2 || pane > visibleCount) return { ok: false, error: 'Choose a visible follower pane.' };
+  if (shouldPause) paused.add(pane); else paused.delete(pane);
+  panes.get(pane)?.send('pane-paused-v18', Boolean(shouldPause));
+  broadcast();
+  return { ok: true, paneNumber: pane, paused: Boolean(shouldPause) };
 });
 
-ipcMain.handle('v18-get-health', () => healthSnapshot());
+ipcMain.handle('v18-get-health', () => snapshot());
 
-function sendMenuCommand(command, payload = null) {
-  toolbarWindow()?.webContents.send('menu-command-v18', { command, payload });
+function command(name, payload = null) {
+  windowForUI()?.webContents.send('menu-command-v18', { command: name, payload });
 }
 
-function installApplicationMenu() {
+app.whenReady().then(() => {
   const isMac = process.platform === 'darwin';
   const template = [
-    ...(isMac ? [{
-      label: 'Conduit',
-      submenu: [
-        { label: 'About Conduit', click: () => dialog.showMessageBox({ type: 'info', title: 'About Conduit', message: 'Conduit', detail: 'A linked multi-pane browser made by Jujhar.' }) },
-        { type: 'separator' },
-        { label: 'Settings…', accelerator: 'CommandOrControl+,', click: () => sendMenuCommand('settings') },
-        { type: 'separator' },
-        { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' },
-      ],
-    }] : []),
-    {
-      label: 'File',
-      submenu: [
-        { label: 'Focus Address', accelerator: 'CommandOrControl+L', click: () => sendMenuCommand('focus-address') },
-        { label: 'Save Workspace Preset', accelerator: 'CommandOrControl+Shift+S', click: () => sendMenuCommand('save-preset') },
-        { type: 'separator' },
-        isMac ? { role: 'close' } : { role: 'quit' },
-      ],
-    },
-    {
-      label: 'View',
-      submenu: [
-        { label: 'Reload Active Pane', accelerator: 'CommandOrControl+R', click: () => sendMenuCommand('reload-active') },
-        { label: 'Reload Every Pane', accelerator: 'CommandOrControl+Shift+R', click: () => sendMenuCommand('reload-all') },
-        { type: 'separator' },
-        ...Array.from({ length: 8 }, (_unused, index) => ({
-          label: `Focus Pane ${index + 1}`,
-          accelerator: `CommandOrControl+${index + 1}`,
-          click: () => sendMenuCommand('focus-pane', index + 1),
-        })),
-        { type: 'separator' },
-        { role: 'togglefullscreen' },
-      ],
-    },
+    ...(isMac ? [{ label: 'Conduit', submenu: [
+      { label: 'About Conduit', click: () => dialog.showMessageBox({ type: 'info', title: 'About Conduit', message: 'Conduit', detail: 'A linked multi-pane browser made by Jujhar.' }) },
+      { type: 'separator' },
+      { label: 'Settings…', accelerator: 'CommandOrControl+,', click: () => command('settings') },
+      { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' },
+    ] }] : []),
+    { label: 'File', submenu: [
+      { label: 'Focus Address', accelerator: 'CommandOrControl+L', click: () => command('focus-address') },
+      { label: 'Save Workspace Preset', accelerator: 'CommandOrControl+Shift+S', click: () => command('save-preset') },
+      { type: 'separator' }, isMac ? { role: 'close' } : { role: 'quit' },
+    ] },
+    { label: 'View', submenu: [
+      { label: 'Reload Active Pane', accelerator: 'CommandOrControl+R', click: () => command('reload-active') },
+      { label: 'Reload Every Pane', accelerator: 'CommandOrControl+Shift+R', click: () => command('reload-all') },
+      { type: 'separator' },
+      ...Array.from({ length: 8 }, (_unused, index) => ({ label: `Focus Pane ${index + 1}`, accelerator: `CommandOrControl+${index + 1}`, click: () => command('focus-pane', index + 1) })),
+      { type: 'separator' }, { role: 'togglefullscreen' },
+    ] },
     { role: 'windowMenu' },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
-}
-
-app.whenReady().then(installApplicationMenu);
-app.on('browser-window-created', () => {
-  panes.clear();
-  paneStates.clear();
-  pausedPanes.clear();
-  pendingActions.clear();
-  setTimeout(broadcastHealth, 800);
 });
 
-require('./main');
+app.on('browser-window-created', () => {
+  panes.clear();
+  states.clear();
+  paused.clear();
+  setTimeout(broadcast, 700);
+});
+
+require('./workspace-v18');
