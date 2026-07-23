@@ -52,16 +52,23 @@ async function lookupIP(contents) {
   return { ok: false, error: lastError?.message || 'IP address unavailable' };
 }
 
+function requestedPanes(value) {
+  const input = Array.isArray(value)
+    ? value
+    : Array.from({ length: Math.max(1, Math.min(MAX_PANES, Number(value) || 4)) }, (_unused, index) => index + 1);
+  return [...new Set(input.map(Number))]
+    .filter((pane) => Number.isInteger(pane) && pane >= 1 && pane <= MAX_PANES);
+}
+
 ipcMain.on('register-pane-v18', rememberPane);
 ipcMain.on('pane-state-v18', rememberPane);
 
-ipcMain.handle('v25-check-ip-fallbacks', async (_event, countValue) => {
-  const count = Math.max(1, Math.min(MAX_PANES, Number(countValue) || 4));
-  return Promise.all(Array.from({ length: count }, async (_unused, index) => {
-    const paneNumber = index + 1;
+ipcMain.handle('v25-check-ip-fallbacks', async (_event, request) => {
+  const paneNumbers = requestedPanes(request);
+  return Promise.all(paneNumbers.map(async (paneNumber) => {
     const result = await lookupIP(panes.get(paneNumber));
     return { paneNumber, ...result };
   }));
 });
 
-module.exports = { cleanIP };
+module.exports = { cleanIP, requestedPanes };
