@@ -2,7 +2,6 @@
 
 (() => {
   const backdrop = document.querySelector('#setup-backdrop');
-  const dialog = document.querySelector('#setup-dialog');
   const eventStream = document.querySelector('#event-stream');
   const quickCount = document.querySelector('#quick-screen-count');
   const setupCount = document.querySelector('#setup-screen-count');
@@ -222,21 +221,20 @@
   }
 
   if (backdrop) {
-    new MutationObserver(() => {
+    new MutationObserver((mutations) => {
       if (committingHidden || exitInProgress) return;
-      if (backdrop.classList.contains('hidden')) playExit();
-      else playEntrance();
-    }).observe(backdrop, { attributes: true, attributeFilter: ['class'] });
-  }
+      const mutation = mutations.at(-1);
+      const oldClasses = new Set(String(mutation?.oldValue || '').split(/\s+/).filter(Boolean));
+      const wasHidden = oldClasses.has('hidden');
+      const isHidden = backdrop.classList.contains('hidden');
 
-  if (dialog) {
-    new MutationObserver(() => {
-      if (!dialog.classList.contains('operation-mode')) return;
-      dialog.classList.remove('conduit-operation-enter');
-      void dialog.offsetWidth;
-      dialog.classList.add('conduit-operation-enter');
-      setTimeout(() => dialog.classList.remove('conduit-operation-enter'), 820);
-    }).observe(dialog, { attributes: true, attributeFilter: ['class'] });
+      if (!wasHidden && isHidden) playExit();
+      else if (wasHidden && !isHidden) playEntrance();
+    }).observe(backdrop, {
+      attributes: true,
+      attributeOldValue: true,
+      attributeFilter: ['class'],
+    });
   }
 
   quickCount?.addEventListener('change', updatePerformanceState);
