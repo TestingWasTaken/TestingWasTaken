@@ -1,13 +1,13 @@
 {
   "name": "conduit-browser",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "private": true,
-  "description": "One-to-eight-pane Electron browser with explicit eight-pane synchronization, automatic 80% scaling for dense layouts, configurable palettes, isolated routes, and a quieter local welcome page.",
-  "main": "src/main-entry-v17.js",
+  "description": "A focused one-to-eight-pane Electron browser with one sync engine, pane topology, selective following, focus and pause controls, saved workspaces, session restore, and a restrained Mac utility interface.",
+  "main": "src/main-entry-v18.js",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check src/main-entry-v17.js && node --check src/main-v16.js && node --check src/adblocker.js && node --check src/main.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && node --check src/preload.js && node --check src/page-preload.js && node --check src/page-preload-v17.js && node --check src/renderer/interaction-guard.js && node --check src/renderer/app-v11.js && node --check src/renderer/ui-v14.js && node --check src/renderer/ui-v15.js && node --check src/renderer/ui-v16.js && node --check src/renderer/ui-v17.js && npm test"
+    "check": "node --check src/main-entry-v18.js && node --check src/main-v18.js && node --check src/workspace-v18.js && node --check src/preload-v18.js && node --check src/page-preload-v18.js && node --check src/renderer/app-v18.js && node --check src/adblocker.js && node --check src/core.js && node --check src/tor-manager.js && node --check src/tor-bridge.js && npm test"
   },
   "devDependencies": {
     "electron": "^37.2.3"
