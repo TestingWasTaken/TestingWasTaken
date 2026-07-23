@@ -6,6 +6,7 @@ const MAX_PANES = 8;
 const panes = new Map();
 const states = new Map();
 const paused = new Set();
+const navigationLocks = new Map();
 let visibleCount = 4;
 let following = false;
 let sequence = 0;
@@ -71,6 +72,18 @@ function sendPolicy() {
   for (const contents of panes.values()) if (live(contents)) contents.send('sync-policy-v18', policy);
 }
 
+function followLeaderURL(state) {
+  const targetURL = String(state?.url || '');
+  if (!targetURL || !/^https?:|^file:/i.test(targetURL)) return;
+  for (const [pane, contents] of followers()) {
+    if (states.get(pane)?.challenge || contents.getURL() === targetURL) continue;
+    const lock = navigationLocks.get(pane);
+    if (lock?.url === targetURL && Date.now() - lock.time < 3500) continue;
+    navigationLocks.set(pane, { url: targetURL, time: Date.now() });
+    contents.loadURL(targetURL).catch(() => {});
+  }
+}
+
 ipcMain.on('register-pane-v18', (event, payload) => {
   const pane = Number(payload?.paneNumber);
   if (!Number.isInteger(pane) || pane < 1 || pane > MAX_PANES) return;
@@ -85,8 +98,11 @@ ipcMain.on('pane-state-v18', (event, payload) => {
   if (!Number.isInteger(pane) || pane < 1 || pane > MAX_PANES) return;
   panes.set(pane, event.sender);
   states.set(pane, { ...(payload?.state || {}), updatedAt: Date.now() });
-  if (following && pane === 1 && policy.scrolling) {
-    for (const [_number, contents] of followers()) contents.send('leader-scroll-v18', payload.state || {});
+  if (following && pane === 1) {
+    if (policy.navigation) followLeaderURL(payload.state);
+    if (policy.scrolling) {
+      for (const [_number, contents] of followers()) contents.send('leader-scroll-v18', payload.state || {});
+    }
   }
   broadcast();
 });
@@ -132,6 +148,7 @@ ipcMain.handle('v18-set-pane-paused', (_event, value, shouldPause) => {
   if (!Number.isInteger(pane) || pane < 2 || pane > visibleCount) return { ok: false, error: 'Choose a visible follower pane.' };
   if (shouldPause) paused.add(pane); else paused.delete(pane);
   panes.get(pane)?.send('pane-paused-v18', Boolean(shouldPause));
+  if (!shouldPause && following) panes.get(1)?.send('request-pane-state-v18');
   broadcast();
   return { ok: true, paneNumber: pane, paused: Boolean(shouldPause) };
 });
@@ -172,6 +189,7 @@ app.on('browser-window-created', () => {
   panes.clear();
   states.clear();
   paused.clear();
+  navigationLocks.clear();
   setTimeout(broadcast, 700);
 });
 
