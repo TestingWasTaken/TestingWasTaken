@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Conduit</title>
+  <style>
+    :root { color-scheme: light; --paper:#f1efe7; --ink:#252822; --muted:#76766e; --line:#c8c5ba; --accent:#486451; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif; }
+    main { width:min(620px,calc(100% - 38px)); margin:50px auto 90px; }
+    header { display:flex; align-items:baseline; justify-content:space-between; padding-bottom:11px; border-bottom:1px solid var(--line); }
+    header strong { letter-spacing:.14em; font-size:11px; text-transform:uppercase; }
+    header span { color:var(--muted); font-size:10px; }
+    h1 { max-width:540px; margin:46px 0 13px -2px; font-size:clamp(36px,7vw,58px); line-height:.99; letter-spacing:-.055em; font-weight:720; }
+    .intro { max-width:440px; margin:0; color:#5d5e57; font-size:15px; }
+    .pencil-note { width:max-content; max-width:90%; margin:27px 0 0 19px; color:var(--muted); font-size:11px; transform:rotate(-.35deg); }
+    section { margin-top:44px; padding-top:15px; border-top:1px solid var(--line); }
+    section h2 { margin:0 0 5px; font-size:13px; }
+    section p { margin:0 0 13px; color:var(--muted); font-size:11px; }
+    .test-row { display:grid; grid-template-columns:1fr auto; gap:8px; }
+    input,button,select { height:36px; border:1px solid #b5b2a7; border-radius:3px; background:#e9e6dc; color:var(--ink); font:inherit; }
+    input { min-width:0; padding:0 10px; background:rgba(255,255,255,.36); }
+    button { padding:0 13px; cursor:pointer; }
+    button:active { transform:translateY(1px); }
+    .small-row { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:11px; color:var(--muted); font-size:11px; }
+    .small-row select { padding:0 8px; }
+    .counter { color:var(--ink); font-weight:650; }
+    .scroll-marker { height:520px; margin:34px 0 18px 7px; padding-left:13px; border-left:1px solid var(--line); color:var(--muted); font-size:10px; }
+    footer { display:flex; justify-content:space-between; gap:15px; padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:10px; }
+    @media (prefers-color-scheme:dark) { :root{ color-scheme:dark; --paper:#252823; --ink:#eeefe9; --muted:#a6aaa1; --line:#454a43; --accent:#8cb09a; } input,button,select{ background:#30342f; border-color:#50564e; } .intro{ color:#bdc0b8; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header><strong>Conduit</strong><span>local start page</span></header>
+    <h1>One pane leads.<br />The others keep up.</h1>
+    <p class="intro">Use Pane 1 for ordinary browsing. Conduit can carry supported navigation, scrolling, typing, and clicks to the follower panes without merging their sessions.</p>
+    <p class="pencil-note">The first pane is the boss. Pause any follower that needs a minute.</p>
+
+    <section>
+      <h2>Quick following check</h2>
+      <p>Turn on Follow Pane 1, then type, choose an option, click, and scroll here.</p>
+      <div class="test-row"><input id="message" type="text" placeholder="Type something small" /><button id="increment">Add one</button></div>
+      <div class="small-row">
+        <label><input id="enabled" type="checkbox" /> checkbox</label>
+        <select id="choice"><option>First option</option><option>Second option</option><option>Third option</option></select>
+        <span>count: <span id="count" class="counter">0</span></span>
+      </div>
+    </section>
+
+    <div class="scroll-marker">A deliberately long bit of paper for testing scroll following.</div>
+    <footer><span>⌘1–8 focuses a pane</span><span>⌘, opens Settings</span></footer>
+  </main>
+  <script>
+    let count = 0;
+    document.querySelector('#increment').addEventListener('click', () => {
+      count += 1;
+      document.querySelector('#count').textContent = String(count);
+    });
+  </script>
+</body>
+</html>
