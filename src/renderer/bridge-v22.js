@@ -119,6 +119,8 @@
     if (quick) quick.value = '4';
     if (setting) setting.value = '4';
     if (zoom) zoom.value = '0.8';
+
+    setTimeout(() => document.querySelector('#open-settings')?.click(), 80);
   }
 
   function installInteractions() {
