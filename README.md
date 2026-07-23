@@ -1,17 +1,20 @@
-# Conduit 0.14
+# Conduit 0.15
 
 Conduit is a linked multi-pane Electron browser. Pane 1 can lead supported activity across the remaining panes, while each pane keeps an isolated browser session and can optionally use an isolated network route.
 
-## What changed in 0.14
+## What changed in 0.15
 
-- Renamed the application from Relay to **Conduit**.
-- Replaced the static toolbar summary with live controls for pane count, page scale, routing, pane linking, and request filtering.
-- Toolbar changes use the same locked apply workflow as the full settings sheet.
-- Rebuilt Settings as a compact translucent macOS-style sheet.
-- Removed the large controller explanation and routing-install paragraph from the interface.
-- Replaced the generic connection console with a compact session trace.
-- Trace rows include short event hashes and concrete layout, route, verification, filter, and linking results.
-- Preserved the synchronization, reset, routing, and bounded-memory bridge behavior from the 0.12 engine.
+- Expanded the workspace from four to eight real browser panes.
+- Added 3×2 and 4×2 workspace matrices for five to eight panes.
+- Added an in-app performance warning because additional Electron sessions can increase memory use, battery drain, and interface lag.
+- Replaced jumpy follower scrolling with continuous controller sampling and eased follower motion.
+- Removed the permanent top-right linking status block and the Conduit subtitle.
+- Reworked Settings around a compact mineral-glass palette with slower entrance and exit motion.
+- Progress UI appears only while Conduit is applying, restarting, or resetting something.
+- Renamed the session trace to the **Conduit ledger** and removed generic request/ready/connected noise.
+- Ledger entries use focused signal names such as MATRIX, EGRESS, MIRROR, ADFILTER, COMMIT, and FAULT.
+- Verified IP results appear as individual pane entries, with location details when the optional lookup succeeds.
+- Marked the built-in ad filter as beta because filtering can interfere with some websites.
 
 ## Install on macOS
 
@@ -27,17 +30,17 @@ After dependencies are installed, you can also double-click `Start Conduit.comma
 
 ## Toolbar controls
 
-- **Panes:** choose one to four panes.
+- **Panes:** choose one to eight panes.
 - **Zoom:** change the shared page scale.
 - **Route:** switch between the standard route and isolated per-pane identities.
 - **Follow pane 1:** enable or disable linked activity.
-- **Filter:** enable or disable the built-in advertising and tracker request filter.
+- **Ad filter:** enable or disable the beta advertising and tracker request filter.
 
 Each change opens the progress sheet, applies the complete configuration, and returns browser access only after the operation finishes.
 
 ## Pane linking
 
-When **Follow pane 1** is enabled, Conduit mirrors supported clicks, typing, selections, navigation, and proportional scrolling from Pane 1 to the visible follower panes.
+When **Follow pane 1** is enabled, Conduit mirrors supported clicks, typing, selections, navigation, and scrolling from Pane 1 to the visible follower panes. Window scrolling is sampled continuously and followers ease toward the latest position.
 
 CAPTCHA and security-challenge interfaces are not mirrored. Password fields, file uploads, payments, purchases, votes, account deletion, and similar sensitive actions are excluded.
 
