@@ -1,0 +1,160 @@
+@import url('./styles-v21.css');
+
+:root {
+  --canvas: #353a44;
+  --glass: rgba(69, 74, 87, .72);
+  --glass-strong: rgba(78, 84, 98, .88);
+  --glass-soft: rgba(90, 96, 110, .46);
+  --ink: #f4f5f7;
+  --muted: #c0c4cd;
+  --line: rgba(255, 255, 255, .13);
+  --line-strong: rgba(255, 255, 255, .22);
+  --overlay: rgba(30, 33, 40, .46);
+  --shadow: 0 22px 65px rgba(12, 14, 19, .34);
+}
+
+body {
+  background:
+    radial-gradient(circle at 15% -10%, rgba(132, 146, 177, .22), transparent 38%),
+    radial-gradient(circle at 90% 15%, rgba(85, 132, 155, .14), transparent 34%),
+    transparent;
+}
+
+.brand strong,
+.loading-brand strong {
+  font-style: normal !important;
+  transform: none !important;
+  letter-spacing: -.025em;
+}
+
+.toolbar {
+  background: rgba(66, 72, 85, .72) !important;
+  backdrop-filter: blur(25px) saturate(1.18) !important;
+  -webkit-backdrop-filter: blur(25px) saturate(1.18) !important;
+}
+
+.settings-backdrop,
+.full-screen {
+  background: rgba(38, 42, 51, .46) !important;
+  backdrop-filter: blur(18px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+}
+
+.settings-sheet,
+.loading-panel {
+  background: rgba(76, 82, 96, .80) !important;
+  border-color: rgba(255, 255, 255, .20) !important;
+  box-shadow: 0 24px 70px rgba(12, 15, 20, .34) !important;
+}
+
+.settings-section {
+  background: rgba(255, 255, 255, .045) !important;
+  border-color: rgba(255, 255, 255, .12) !important;
+  border-radius: 10px !important;
+}
+
+.choice,
+.check-row,
+.field-grid label,
+.policy-grid label {
+  background: rgba(255, 255, 255, .045) !important;
+  border-color: rgba(255, 255, 255, .12) !important;
+}
+
+#topology-list {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.pane-card,
+.pane-row-v22 {
+  position: relative;
+  min-height: 82px !important;
+  padding: 11px 12px 10px 17px !important;
+  border-radius: 9px !important;
+  background: rgba(255, 255, 255, .045) !important;
+  border: 1px solid rgba(255, 255, 255, .12) !important;
+  box-shadow: none !important;
+}
+
+.pane-card::before,
+.pane-row-v22::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  border-radius: 2px;
+  background: rgba(111, 184, 255, .78);
+}
+
+.pane-number,
+button[data-action='focus'],
+#show-all-panes {
+  display: none !important;
+}
+
+.pane-card-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.pane-name-input {
+  min-width: 0 !important;
+  width: 100% !important;
+  height: 27px !important;
+  padding: 0 5px !important;
+  border-radius: 5px !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  font-weight: 650 !important;
+}
+
+.pane-name-input:focus {
+  background: rgba(255, 255, 255, .07) !important;
+  border-color: rgba(122, 190, 255, .56) !important;
+}
+
+.pane-state {
+  font-size: 10px !important;
+  white-space: nowrap;
+}
+
+.pane-route {
+  margin: 5px 0 8px !important;
+  padding-left: 5px;
+  font-size: 10px !important;
+  color: var(--muted) !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pane-card-actions {
+  justify-content: flex-end !important;
+  gap: 6px !important;
+}
+
+.pane-card-actions button {
+  min-height: 27px !important;
+  padding: 0 9px !important;
+  border-radius: 6px !important;
+}
+
+#address-form {
+  background: rgba(255, 255, 255, .07) !important;
+  border-color: rgba(255, 255, 255, .15) !important;
+}
+
+#go {
+  min-width: 48px;
+  border-radius: 6px !important;
+}
+
+@media (max-width: 980px) {
+  #topology-list { grid-template-columns: 1fr !important; }
+}
