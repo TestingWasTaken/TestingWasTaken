@@ -1,18 +1,17 @@
-# Conduit 0.22
+# Conduit 0.23
 
 Conduit is a one-to-eight-pane Electron browser for repeating ordinary browsing work across isolated sessions. The main screen can lead navigation, scrolling, typing, and clicks while followers keep separate cookies, storage, cache, and optional route identities.
 
 ## What changed
 
-- Restored low-latency scroll following through a dedicated animation-frame channel.
-- Added an explicit follower handshake after Settings closes and after a pane reset.
-- Added a retry and visible state to the Go button when the workspace is briefly busy.
-- Simplified the pane section to names, status, Pause, and Reset.
-- Removed numeric pane tiles and the Focus button from Settings.
-- Renamed the default visible labels to Main screen and Follower A–G.
-- Changed missing location text to `IP swapped · location unavailable` while retaining the IP address.
-- Rebuilt `relay://home` as a simple Conduit alignment test with text, checkbox, options, a button, count, and scrolling.
-- Kept the translucent graphite interface, four-pane startup, adjustable scale, Standard and Multiple IPs modes, sound routing, and route checks.
+- Every launch starts with a clean four-pane workspace at 80% scale.
+- Removed the duplicate Done action. Settings now uses Cancel or Apply and close.
+- Pane-count changes are verified and retried before the interface reports completion.
+- Changing pane count in Settings creates the requested panes immediately; Cancel restores the previous count.
+- Rebuilt the pane section as unclipped single rows with names, route status, Pause, and Reset.
+- Removed numeric pane badges, Focus, and Show all from Settings.
+- Kept the low-latency scroll channel, Go-button retry, reset recovery, and post-Settings follower handshake.
+- Kept the simple `relay://welcome` alignment page and translucent graphite interface.
 
 ## Install on macOS
 
