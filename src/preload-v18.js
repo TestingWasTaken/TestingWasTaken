@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('conduit', {
     ]);
     return { ...(workspace || {}), sync };
   },
+  syncPaneCount: (value) => ipcRenderer.invoke('v18-set-pane-count', value),
   setZoom: (value) => ipcRenderer.invoke('v18-set-zoom', value),
   setNetwork: (value) => ipcRenderer.invoke('v18-set-network', value),
   checkIPs: () => ipcRenderer.invoke('v18-check-ips'),
