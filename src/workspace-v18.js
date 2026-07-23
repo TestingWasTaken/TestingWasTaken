@@ -17,64 +17,73 @@ const MAX_PANES = 8;
 const TOOLBAR_HEIGHT = 82;
 const LABEL_HEIGHT = 24;
 const GAP = 2;
-const DEFAULT_URL = 'relay://welcome';
+const HOME_URL = 'relay://home';
+const LEGACY_HOME_URL = 'relay://welcome';
+const AUDIO_MODES = new Set(['leader', 'focused', 'all', 'muted']);
 
 let mainWindow = null;
 let views = [];
 let sessions = [];
 let screenCount = 4;
 let zoomFactor = 0.8;
-let currentURL = DEFAULT_URL;
-let paneURLs = Array(MAX_PANES).fill(DEFAULT_URL);
+let currentURL = HOME_URL;
+let paneURLs = Array(MAX_PANES).fill(HOME_URL);
 let paneLabels = Array.from({ length: MAX_PANES }, (_unused, index) => index === 0 ? 'Main' : `Pane ${index + 1}`);
 let focusedPane = 0;
+let audioMode = 'leader';
 let networkMode = 'direct';
 let networkBusy = false;
 let setupVisible = false;
 let torRuntime = null;
 let bridges = Array(MAX_PANES).fill(null);
 let ipResults = Array(MAX_PANES).fill(null);
-let statusText = 'Ready';
+let statusText = 'Starting';
 let lastResetAt = null;
 let resizeTimer = null;
 let stateTimer = null;
 let saveTimer = null;
 let identitySequence = 0;
 
-const welcomePath = path.join(__dirname, 'renderer', 'welcome-v18.html');
-const welcomeURL = pathToFileURL(welcomePath).href;
+const homePath = path.join(__dirname, 'renderer', 'welcome-v18.html');
+const homeFileURL = pathToFileURL(homePath).href;
 
 function workspaceFile() {
-  return path.join(app.getPath('userData'), 'workspace-v18.json');
+  return path.join(app.getPath('userData'), 'workspace-v20.json');
+}
+
+function isHome(value) {
+  return value === HOME_URL || value === LEGACY_HOME_URL || value === homeFileURL;
 }
 
 function displayURL(value) {
-  return value === welcomeURL || value === DEFAULT_URL ? DEFAULT_URL : value;
+  return isHome(value) ? HOME_URL : value;
 }
 
 function actualURL(value) {
   const normalized = normalizeURL(value);
-  return normalized === DEFAULT_URL ? welcomeURL : normalized;
+  return isHome(normalized) ? homeFileURL : normalized;
 }
 
 function safeStoredURL(value) {
   const normalized = normalizeURL(value);
-  return normalized === DEFAULT_URL ? DEFAULT_URL : normalized;
+  return isHome(normalized) ? HOME_URL : normalized;
 }
 
 function readWorkspace() {
+  screenCount = 4;
   try {
     const data = JSON.parse(fs.readFileSync(workspaceFile(), 'utf8'));
-    screenCount = clampScreenCount(data.screenCount || 4);
     zoomFactor = clampZoom(data.zoomFactor || 0.8);
-    currentURL = safeStoredURL(data.currentURL || DEFAULT_URL);
+    currentURL = safeStoredURL(data.currentURL || HOME_URL);
     paneURLs = Array.from({ length: MAX_PANES }, (_unused, index) => safeStoredURL(data.paneURLs?.[index] || currentURL));
     paneLabels = Array.from({ length: MAX_PANES }, (_unused, index) => String(data.paneLabels?.[index] || (index === 0 ? 'Main' : `Pane ${index + 1}`)).slice(0, 28));
+    audioMode = AUDIO_MODES.has(data.audioMode) ? data.audioMode : 'leader';
   } catch {
-    screenCount = 4;
     zoomFactor = 0.8;
-    currentURL = DEFAULT_URL;
-    paneURLs = Array(MAX_PANES).fill(DEFAULT_URL);
+    currentURL = HOME_URL;
+    paneURLs = Array(MAX_PANES).fill(HOME_URL);
+    paneLabels = Array.from({ length: MAX_PANES }, (_unused, index) => index === 0 ? 'Main' : `Pane ${index + 1}`);
+    audioMode = 'leader';
   }
 }
 
@@ -84,11 +93,11 @@ function saveWorkspaceSoon() {
     try {
       fs.mkdirSync(path.dirname(workspaceFile()), { recursive: true });
       fs.writeFileSync(workspaceFile(), JSON.stringify({
-        screenCount,
         zoomFactor,
         currentURL: displayURL(currentURL),
         paneURLs: paneURLs.map(displayURL),
         paneLabels,
+        audioMode,
       }, null, 2));
     } catch {}
   }, 180);
@@ -140,6 +149,7 @@ function sendStateNow() {
     paneURLs: paneURLs.map(displayURL),
     paneLabels,
     focusedPane,
+    audioMode,
     networkMode,
     networkBusy,
     setupVisible,
@@ -212,6 +222,25 @@ function applyZoom() {
   activeViews().forEach((view) => view.webContents.setZoomFactor(zoomFactor));
 }
 
+function audiblePaneIndex() {
+  if (audioMode === 'focused') return Math.max(0, (focusedPane || 1) - 1);
+  return 0;
+}
+
+function applyAudioMode() {
+  const selected = audiblePaneIndex();
+  views.forEach((view, index) => {
+    let audible = false;
+    if (index < screenCount) {
+      if (audioMode === 'all') audible = true;
+      else if (audioMode === 'leader') audible = index === 0;
+      else if (audioMode === 'focused') audible = index === selected;
+    }
+    if (audioMode === 'muted') audible = false;
+    view.webContents.setAudioMuted(!audible);
+  });
+}
+
 function configureSession(ses, index) {
   ses.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   ses.setPermissionCheckHandler(() => false);
@@ -231,7 +260,7 @@ function contextMenuForPane(index) {
 
 function attachViewEvents(view, index) {
   const wc = view.webContents;
-  wc.setAudioMuted(index > 0);
+  wc.setAudioMuted(true);
   wc.on('did-start-loading', () => { statusText = `${paneLabels[index]} loading`; scheduleState(); });
   wc.on('did-stop-loading', () => {
     paneURLs[index] = displayURL(wc.getURL());
@@ -239,6 +268,7 @@ function attachViewEvents(view, index) {
     wc.send('request-pane-state-v18');
     statusText = 'Ready';
     saveWorkspaceSoon();
+    applyAudioMode();
     scheduleState(60);
   });
   wc.on('did-navigate', (_event, url) => {
@@ -309,7 +339,7 @@ function nextIdentity(index) {
 }
 
 async function createBridge(index) {
-  if (!torRuntime) throw new Error('The local private route is unavailable.');
+  if (!torRuntime) throw new Error('The local private route is unavailable. Start a compatible local service and try again.');
   const socksPort = torRuntime.socksPorts[index] || torRuntime.port;
   return startTorHttpBridge({ socksPort, username: nextIdentity(index), password: `pane-${index + 1}-${identitySequence}` });
 }
@@ -333,7 +363,7 @@ async function changeNetwork(mode) {
   const requested = mode === 'tor' ? 'tor' : 'direct';
   networkBusy = true;
   setupVisible = true;
-  statusText = requested === 'tor' ? 'Connecting private routes' : 'Restoring standard route';
+  statusText = requested === 'tor' ? 'Connecting isolated routes' : 'Restoring standard route';
   updateLayout();
   scheduleState();
   try {
@@ -342,7 +372,7 @@ async function changeNetwork(mode) {
     if (requested === 'tor') {
       await setAllPrivate();
       networkMode = 'tor';
-      statusText = 'Private routes active';
+      statusText = 'Isolated routes active';
     } else {
       await setAllDirect();
       networkMode = 'direct';
@@ -358,32 +388,55 @@ async function changeNetwork(mode) {
     return { ok: false, mode: 'direct', error: error?.message || String(error) };
   } finally {
     networkBusy = false;
+    setupVisible = false;
     updateLayout();
     scheduleState();
   }
 }
 
+async function fetchRouteDetails(ses) {
+  try {
+    const response = await ses.fetch('https://ipwho.is/', { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || data.success === false || !data.ip) throw new Error(data.message || `HTTP ${response.status}`);
+    const location = [data.city, data.region_code || data.region, data.country_code].filter(Boolean).join(', ');
+    return {
+      ok: true,
+      ip: String(data.ip),
+      location: location || String(data.country || 'Location unavailable'),
+      city: data.city || '',
+      region: data.region || '',
+      country: data.country || '',
+      countryCode: data.country_code || '',
+    };
+  } catch (firstError) {
+    try {
+      const response = await ses.fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok || !data.ip) throw new Error(`HTTP ${response.status}`);
+      return { ok: true, ip: String(data.ip), location: 'Location unavailable' };
+    } catch (error) {
+      return { ok: false, ip: 'Unavailable', location: '', error: error?.message || firstError?.message || String(error) };
+    }
+  }
+}
+
 async function checkIPs() {
+  if (networkBusy) return { ok: false, error: 'Another operation is running.' };
   networkBusy = true;
   setupVisible = true;
+  statusText = 'Checking IP address and location';
   updateLayout();
   scheduleState();
   try {
-    const results = await Promise.all(activeViews().map(async (_view, index) => {
-      try {
-        const response = await sessions[index].fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
-        const data = await response.json();
-        return { ok: response.ok, ip: String(data.ip || 'Unknown') };
-      } catch (error) {
-        return { ok: false, ip: 'Unavailable', error: error?.message || String(error) };
-      }
-    }));
+    const results = await Promise.all(activeViews().map((_view, index) => fetchRouteDetails(sessions[index])));
     ipResults = Array(MAX_PANES).fill(null);
     results.forEach((result, index) => { ipResults[index] = result; });
-    statusText = `${results.filter((item) => item.ok).length}/${results.length} routes verified`;
+    statusText = `${results.filter((item) => item.ok).length}/${results.length} routes checked`;
     return { ok: results.every((item) => item.ok), results };
   } finally {
     networkBusy = false;
+    setupVisible = false;
     updateLayout();
     scheduleState();
   }
@@ -400,6 +453,7 @@ async function resetPane(paneNumberValue) {
   const paneNumber = Number(paneNumberValue);
   const index = paneNumber - 1;
   if (!Number.isInteger(index) || index < 0 || index >= screenCount) return { ok: false, error: 'Choose a visible pane.' };
+  if (networkBusy) return { ok: false, error: 'Another operation is running.' };
   networkBusy = true;
   setupVisible = true;
   updateLayout();
@@ -422,12 +476,15 @@ async function resetPane(paneNumberValue) {
     return { ok: false, error: error?.message || String(error) };
   } finally {
     networkBusy = false;
+    setupVisible = false;
     updateLayout();
     scheduleState();
   }
 }
 
 async function restartAll() {
+  if (networkBusy) return { ok: false, error: 'Another operation is running.' };
+  const requestedNetwork = networkMode;
   networkBusy = true;
   setupVisible = true;
   updateLayout();
@@ -438,8 +495,13 @@ async function restartAll() {
     operationProgress('restart', 32, 'Clearing pane sessions');
     for (let index = 0; index < MAX_PANES; index += 1) await clearPane(index);
     operationProgress('restart', 58, 'Rebuilding routes');
-    if (networkMode === 'tor') await setAllPrivate();
-    else await setAllDirect();
+    if (requestedNetwork === 'tor') {
+      await setAllPrivate();
+      networkMode = 'tor';
+    } else {
+      await setAllDirect();
+      networkMode = 'direct';
+    }
     operationProgress('restart', 82, 'Reloading visible panes');
     await Promise.allSettled(activeViews().map((_view, index) => views[index].webContents.loadURL(actualURL(paneURLs[index]))));
     lastResetAt = Date.now();
@@ -453,6 +515,8 @@ async function restartAll() {
     return { ok: false, error: error?.message || String(error) };
   } finally {
     networkBusy = false;
+    setupVisible = false;
+    applyAudioMode();
     updateLayout();
     scheduleState();
   }
@@ -461,9 +525,18 @@ async function restartAll() {
 function setFocusedPane(value) {
   const paneNumber = Number(value);
   focusedPane = Number.isInteger(paneNumber) && paneNumber >= 1 && paneNumber <= screenCount ? paneNumber : 0;
+  applyAudioMode();
   updateLayout();
   scheduleState();
   return { ok: true, focusedPane };
+}
+
+function setAudioMode(value) {
+  audioMode = AUDIO_MODES.has(value) ? value : 'leader';
+  applyAudioMode();
+  saveWorkspaceSoon();
+  scheduleState();
+  return { ok: true, audioMode };
 }
 
 async function createWindow() {
@@ -475,7 +548,7 @@ async function createWindow() {
     minHeight: 620,
     show: false,
     title: 'Conduit',
-    backgroundColor: '#d8d7d1',
+    backgroundColor: '#0f1013',
     webPreferences: {
       preload: path.join(__dirname, 'preload-v18.js'),
       contextIsolation: true,
@@ -487,6 +560,8 @@ async function createWindow() {
   await mainWindow.loadFile(path.join(__dirname, 'renderer', 'index-v18.html'));
   for (let index = 0; index < MAX_PANES; index += 1) createView(index);
   await setAllDirect();
+  applyAudioMode();
+  statusText = 'Ready';
   updateLayout();
   sendStateNow();
   mainWindow.on('resize', scheduleLayout);
@@ -519,11 +594,18 @@ ipcMain.handle('v18-set-pane-count-workspace', (_event, value) => {
   ipResults = Array(MAX_PANES).fill(null);
   updateLayout();
   applyZoom();
-  saveWorkspaceSoon();
+  applyAudioMode();
   scheduleState();
   return { ok: true, screenCount };
 });
-ipcMain.handle('v18-set-zoom', (_event, value) => { zoomFactor = clampZoom(value); applyZoom(); saveWorkspaceSoon(); scheduleState(); return { ok: true, zoomFactor }; });
+ipcMain.handle('v18-set-zoom', (_event, value) => {
+  zoomFactor = clampZoom(value);
+  applyZoom();
+  saveWorkspaceSoon();
+  scheduleState();
+  return { ok: true, zoomFactor };
+});
+ipcMain.handle('v18-set-audio-mode', (_event, value) => setAudioMode(value));
 ipcMain.handle('v18-set-network', (_event, value) => changeNetwork(value));
 ipcMain.handle('v18-check-ips', checkIPs);
 ipcMain.handle('v18-reset-pane', (_event, value) => resetPane(value));
@@ -545,7 +627,19 @@ ipcMain.handle('v18-set-settings-visible', (_event, visible) => {
   scheduleState();
   return { ok: true, visible: setupVisible };
 });
-ipcMain.handle('v18-get-workspace', () => ({ screenCount, zoomFactor, currentURL: displayURL(currentURL), paneURLs: paneURLs.map(displayURL), paneLabels, focusedPane, networkMode }));
+ipcMain.handle('v18-get-workspace', () => ({
+  screenCount,
+  zoomFactor,
+  currentURL: displayURL(currentURL),
+  paneURLs: paneURLs.map(displayURL),
+  paneLabels,
+  focusedPane,
+  audioMode,
+  networkMode,
+  ips: ipResults,
+  lastResetAt,
+  adBlock: adBlockSnapshot(),
+}));
 ipcMain.handle('v18-get-adblock', () => adBlockSnapshot());
 ipcMain.handle('v18-set-adblock', (_event, enabled) => { const result = setAdBlockEnabled(enabled); scheduleState(); return result; });
 
