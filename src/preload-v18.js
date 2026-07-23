@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld('conduit', {
   configureSyncV25: (state) => ipcRenderer.invoke('v25-configure-sync', state),
   resyncFollowersV25: () => ipcRenderer.invoke('v25-resync-followers'),
   getSyncQualityV25: () => ipcRenderer.invoke('v25-get-sync-quality'),
+  checkIPFallbacksV25: (count) => ipcRenderer.invoke('v25-check-ip-fallbacks', count),
 
   getAdBlock: () => ipcRenderer.invoke('v18-get-adblock'),
   setAdBlock: (enabled) => ipcRenderer.invoke('v18-set-adblock', enabled),
