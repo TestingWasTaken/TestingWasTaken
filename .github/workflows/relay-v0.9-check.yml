@@ -1,9 +1,9 @@
-name: Relay 0.9 checks
+name: Relay 0.10 checks
 
 on:
   push:
     branches:
-      - relay-browser-v0.9-build
+      - relay-browser-v0.10-build
   workflow_dispatch:
 
 jobs:
