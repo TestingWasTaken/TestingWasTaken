@@ -15,6 +15,7 @@ let syncEnabled = false;
 let latestControllerState = null;
 let actionSequence = 0;
 let sessionNumber = 0;
+let fallbackScreenNumber = 0;
 
 function timestamp() {
   return new Date().toLocaleTimeString('en-CA', {
@@ -40,7 +41,14 @@ function sendDiagnostic(level, message) {
 function screenNumberFor(contents) {
   const partition = contents?.session?.getPartition?.() || '';
   const match = partition.match(/relay-screen-(\d+)/i);
-  return match ? Number(match[1]) : 0;
+  if (match) return Number(match[1]);
+
+  const type = contents?.getType?.() || '';
+  if (type === 'browserView' && fallbackScreenNumber < 4) {
+    fallbackScreenNumber += 1;
+    return fallbackScreenNumber;
+  }
+  return 0;
 }
 
 function validControllerURL(value) {
