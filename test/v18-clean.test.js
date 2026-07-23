@@ -8,49 +8,68 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('package launches Conduit 0.20 through the consolidated entry', () => {
+test('package launches Conduit 0.21 through the consolidated entry', () => {
   const pkg = JSON.parse(read('package.json'));
   assert.equal(pkg.main, 'src/main-entry-v18.js');
-  assert.equal(pkg.version, '0.20.0');
+  assert.equal(pkg.version, '0.21.0');
+  assert.match(pkg.scripts.check, /workspace-v21\.js/);
 });
 
-test('workspace always begins with four panes and eighty percent scale', () => {
-  const source = read('src/workspace-v18.js');
+test('workspace starts with four panes and creates extra panes lazily', () => {
+  const source = read('src/workspace-v21.js');
   assert.match(source, /let screenCount = 4/);
-  assert.match(source, /screenCount = 4;/);
-  assert.match(source, /let zoomFactor = 0\.8/);
+  assert.match(source, /ensureViews\(4\)/);
+  assert.doesNotMatch(source, /for \(let index = 0; index < MAX_PANES; index \+= 1\) createView/);
 });
 
-test('scale, isolated routing, audio, and route details are wired', () => {
-  const preload = read('src/preload-v18.js');
-  const workspace = read('src/workspace-v18.js');
-  assert.match(preload, /setZoom/);
-  assert.match(preload, /setAudioMode/);
-  assert.match(workspace, /v18-set-network/);
-  assert.match(workspace, /ipwho\.is/);
-  assert.match(workspace, /audioMode/);
+test('location lookup uses a ten second provider timeout and a fallback provider', () => {
+  const source = read('src/workspace-v21.js');
+  assert.match(source, /fetchJSONWithTimeout\(ses, provider\.url, 10000\)/);
+  assert.match(source, /ipwho\.is/);
+  assert.match(source, /ipapi\.co/);
+  assert.match(source, /api\.ipify\.org/);
 });
 
-test('following supports navigation and all eight panes', () => {
-  const main = read('src/main-v18.js');
-  assert.match(main, /action\?\.kind === 'navigate'/);
-  assert.match(main, /\^\(https\?:\|file:\|relay:\)/);
-  assert.match(main, /const MAX_PANES = 8/);
+test('pane reset recreates the web contents and requests registration again', () => {
+  const source = read('src/workspace-v21.js');
+  assert.match(source, /forgetPane\(paneNumber\)/);
+  assert.match(source, /await recreateView\(index\)/);
+  assert.match(source, /request-pane-state-v18/);
 });
 
-test('renderer is dark only and has no saved workspace or device appearance option', () => {
+test('settings exposes Standard, Multiple IPs, and a dedicated connection screen', () => {
   const html = read('src/renderer/index-v18.html');
-  const css = read('src/renderer/styles-v18.css');
-  assert.match(html, /data-appearance="dark"/);
-  assert.doesNotMatch(html, /Saved workspace|setting-appearance|Follow macOS/);
-  assert.doesNotMatch(css, /prefers-color-scheme/);
-  assert.match(html, /id="go"/);
-  assert.match(html, /id="boot-screen"/);
+  assert.match(html, /connection-screen/);
+  assert.match(html, />Standard</);
+  assert.match(html, />Multiple IPs</);
+  assert.doesNotMatch(html, /Appearance|Saved workspace/);
 });
 
-test('follow master selects all policy options and URL supports select-all', () => {
-  const app = read('src/renderer/app-v18.js');
-  assert.match(app, /function setAllPolicies/);
-  assert.match(app, /function updateFollowMaster/);
-  assert.match(app, /address\.select\(\)/);
+test('boot flow opens Settings after pane registration', () => {
+  const source = read('src/renderer/app-v21.js');
+  assert.match(source, /async function finishBoot/);
+  assert.match(source, /await openSettings\(\)/);
+  assert.match(source, /registered >= visible/);
+});
+
+test('following master selects or clears all individual policies', () => {
+  const source = read('src/renderer/app-v21.js');
+  assert.match(source, /function setAllPolicies/);
+  assert.match(source, /settingFollow\.addEventListener\('change'/);
+  assert.match(source, /updateFollowMaster/);
+});
+
+test('coordinator throttles health rendering and supports relay navigation', () => {
+  const source = read('src/main-v18.js');
+  assert.match(source, /function scheduleBroadcast/);
+  assert.match(source, /\^\(https\?:\|file:\|relay:\)/);
+  assert.match(source, /__conduitCoordinatorV21/);
+});
+
+test('home page uses the older paper interface with Conduit branding', () => {
+  const html = read('src/renderer/welcome-v18.html');
+  assert.match(html, /--paper:/);
+  assert.match(html, /class="wordmark"/);
+  assert.match(html, />Conduit</);
+  assert.match(html, /id="increment">\+1/);
 });
