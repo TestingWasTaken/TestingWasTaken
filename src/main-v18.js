@@ -53,9 +53,12 @@ function snapshot() {
     };
   });
   const followerRows = rows.slice(1);
+  const visiblePolicy = following
+    ? { ...policy }
+    : { navigation: false, clicks: false, typing: false, scrolling: false };
   return {
     followingEnabled: following,
-    policy: { ...policy },
+    policy: visiblePolicy,
     visiblePaneCount: visibleCount,
     registeredCount: rows.filter((row) => row.registered).length,
     connectedFollowers: followerRows.filter((row) => row.registered && !row.paused).length,
