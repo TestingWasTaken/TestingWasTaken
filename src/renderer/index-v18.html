@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en" data-appearance="system">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Conduit</title>
+  <link rel="stylesheet" href="styles-v18.css" />
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-main">
+      <a class="brand" href="relay://welcome" id="home-link" aria-label="Open Conduit home">
+        <span class="brand-mark" aria-hidden="true"></span><strong>Conduit</strong>
+      </a>
+      <div class="nav-buttons" aria-label="Navigation">
+        <button id="back" aria-label="Back">←</button>
+        <button id="forward" aria-label="Forward">→</button>
+        <button id="reload" aria-label="Reload active pane">↻</button>
+      </div>
+      <form id="address-form"><input id="address" value="relay://welcome" aria-label="Address or search" autocomplete="off" spellcheck="false" /></form>
+      <label class="toolbar-select"><span>Panes</span><select id="quick-pane-count">
+        <option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option>
+      </select></label>
+      <button id="quick-follow" class="follow-button" aria-pressed="false"><span class="tiny-dot"></span><span>Follow Pane 1</span></button>
+      <button id="open-settings" class="primary-button">Settings</button>
+    </div>
+    <div class="toolbar-facts" aria-live="polite">
+      <span id="fact-panes">4 panes open</span>
+      <span id="fact-followers">0 followers connected</span>
+      <span id="fact-aligned">0 caught up</span>
+      <span id="fact-routes">Routes not checked</span>
+      <span id="fact-blocked">0 requests blocked</span>
+    </div>
+  </header>
+
+  <div id="pane-labels" aria-hidden="true"></div>
+
+  <div id="settings-backdrop" class="settings-backdrop hidden">
+    <section class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <header class="settings-header">
+        <div><h1 id="settings-title">Settings</h1><p>Workspace, connection, following, and privacy.</p></div>
+        <button id="close-settings" class="icon-button" aria-label="Close settings">×</button>
+      </header>
+
+      <div id="operation-strip" class="operation-strip" hidden>
+        <div><strong id="operation-title">Applying changes</strong><span id="operation-message">Starting…</span></div>
+        <span id="operation-percent">0%</span>
+        <div class="progress-track"><div id="progress-fill"></div></div>
+      </div>
+
+      <div class="settings-body">
+        <main class="settings-sections">
+          <section class="settings-section">
+            <header><h2>Workspace</h2><p>Choose the layout and how pages are displayed.</p></header>
+            <div class="field-grid">
+              <label><span>Pane count</span><select id="setting-pane-count">
+                <option value="1">1 pane</option><option value="2">2 panes</option><option value="3">3 panes</option><option value="4">4 panes</option><option value="5">5 panes</option><option value="6">6 panes</option><option value="7">7 panes</option><option value="8">8 panes</option>
+              </select></label>
+              <label><span>Page scale</span><select id="setting-zoom">
+                <option value="0.5">50%</option><option value="0.67">67%</option><option value="0.8">80% — recommended</option><option value="0.9">90%</option><option value="1">100%</option><option value="1.1">110%</option><option value="1.25">125%</option><option value="1.5">150%</option>
+              </select></label>
+              <label><span>Appearance</span><select id="setting-appearance"><option value="system">Follow macOS</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+              <label><span>Saved workspace</span><select id="preset-select"><option value="">Choose a preset…</option></select></label>
+            </div>
+            <div class="inline-actions"><button id="save-preset">Save current preset</button><button id="delete-preset" class="quiet-button">Delete selected</button></div>
+            <p id="high-load-note" class="caution" hidden>Seven or eight live browser sessions can make an M1 MacBook Air warm and may reduce scrolling performance.</p>
+          </section>
+
+          <section class="settings-section">
+            <header><h2>Connection</h2><p>Use the normal route or request isolated identities for each pane.</p></header>
+            <div class="choice-row">
+              <label class="choice"><input type="radio" name="network" value="direct" /><span><strong>Standard</strong><small>Use the Mac’s normal connection.</small></span></label>
+              <label class="choice"><input type="radio" name="network" value="tor" /><span><strong>Isolated</strong><small>Separate private identities when a local route is available.</small></span></label>
+            </div>
+            <label class="check-row"><input id="verify-routes" type="checkbox" checked /><span><strong>Verify IP addresses</strong><small>Check each visible pane before closing Settings.</small></span></label>
+          </section>
+
+          <section class="settings-section">
+            <header><h2>Following</h2><p>Pane 1 leads. Choose exactly what followers copy.</p></header>
+            <label class="check-row master"><input id="setting-follow" type="checkbox" /><span><strong>Follow Pane 1</strong><small>Keep active follower panes aligned with the leader.</small></span></label>
+            <div class="policy-grid">
+              <label><input id="policy-navigation" type="checkbox" checked /> Navigation</label>
+              <label><input id="policy-scrolling" type="checkbox" checked /> Scrolling</label>
+              <label><input id="policy-typing" type="checkbox" checked /> Typing</label>
+              <label><input id="policy-clicks" type="checkbox" checked /> Clicks</label>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <header><h2>Privacy</h2><p>Filtering and session cleanup.</p></header>
+            <label class="check-row"><input id="ad-filter" type="checkbox" checked /><span><strong>Ad filter</strong><small>Beta. Some sign-in, video, or checkout pages may work better with it off.</small></span></label>
+            <div class="inline-actions"><button id="restart-all" class="danger-button">Reset every pane</button><span id="last-reset">No reset this session</span></div>
+          </section>
+        </main>
+
+        <aside class="topology-panel">
+          <header><div><h2>Pane map</h2><p id="topology-summary">Waiting for panes…</p></div><button id="show-all-panes" class="quiet-button">Show all</button></header>
+          <div id="topology-list" class="topology-list"></div>
+          <p class="topology-note">A paused follower keeps its session open but stops receiving movement and actions.</p>
+        </aside>
+      </div>
+
+      <footer class="settings-footer">
+        <p>Made with <span>♥</span> by <a id="jujhar-link" href="https://github.com/jujharaujla">Jujhar</a></p>
+        <div><button id="cancel-settings" class="quiet-button">Cancel</button><button id="apply-settings" class="primary-button">Apply changes</button></div>
+      </footer>
+    </section>
+  </div>
+
+  <script src="app-v18.js"></script>
+</body>
+</html>
