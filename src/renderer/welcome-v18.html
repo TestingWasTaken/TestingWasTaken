@@ -14,8 +14,7 @@
     .mark::before,.mark::after { content:""; position:absolute; top:2px; width:11px; height:8px; border:2px solid var(--accent); border-radius:5px; }
     .mark::before { left:0; transform:rotate(-7deg); }
     .mark::after { right:0; transform:rotate(7deg); }
-    h1 { margin:34px 0 8px; font-size:28px; line-height:1.08; letter-spacing:-.035em; }
-    .intro { margin:0 0 34px; color:var(--muted); }
+    h1 { margin:34px 0 30px; font-size:28px; line-height:1.08; letter-spacing:-.035em; }
     section { padding-top:16px; border-top:1px solid var(--line); }
     h2 { margin:0 0 18px; font-size:15px; }
     label { display:block; margin:13px 0 5px; font-size:12px; }
@@ -25,9 +24,10 @@
     .options label { display:inline-flex; align-items:center; gap:6px; margin:0; color:var(--muted); }
     select,button { padding:0 10px; }
     button { cursor:pointer; }
+    .result { margin:18px 0 0; padding:10px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; }
     .count-row { display:flex; align-items:center; gap:9px; margin-top:18px; }
     .count-row strong { min-width:20px; text-align:center; }
-    .scroll-space { height:560px; margin-top:34px; padding:14px 0 0 13px; border-left:1px solid var(--line); color:var(--muted); font-size:11px; }
+    .scroll-space { height:620px; margin-top:34px; padding:14px 0 0 13px; border-left:1px solid var(--line); color:var(--muted); font-size:11px; }
     footer { padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:10px; }
   </style>
 </head>
@@ -36,46 +36,68 @@
     <div class="brand"><span class="mark" aria-hidden="true"></span><span>Conduit</span></div>
 
     <h1>Hello, thank you for using Conduit!</h1>
-    <p class="intro">Use this page to check that the other panes follow the main screen.</p>
 
     <section>
       <h2>Alignment Test</h2>
 
       <label for="message">Text</label>
-      <input id="message" type="text" placeholder="Type here" />
+      <input id="message" name="alignment-message" type="text" placeholder="Type here" />
 
       <div class="options">
-        <label><input id="enabled" type="checkbox" /> Checkbox</label>
-        <select id="choice" aria-label="Test option">
+        <label><input id="enabled" name="alignment-checkbox" type="checkbox" /> Checkbox</label>
+        <select id="choice" name="alignment-option" aria-label="Alignment option">
           <option>First option</option>
           <option>Second option</option>
           <option>Third option</option>
         </select>
-        <button id="test-button">Button</button>
+        <button id="test-button" type="button">Button</button>
       </div>
 
       <div class="count-row">
         <span>Count</span>
         <strong id="count">0</strong>
-        <button id="increment">+1</button>
+        <button id="increment" type="button">+1</button>
       </div>
+
+      <p id="result" class="result">Text: empty · Checkbox: off · First option · Button: ready · Count: 0</p>
     </section>
 
-    <div class="scroll-space">Scroll down to test alignment.</div>
+    <div class="scroll-space">Scroll to the bottom, then back to the top.</div>
     <footer>Conduit local welcome page</footer>
   </main>
 
   <script>
-    let count = 0;
+    const message = document.querySelector('#message');
+    const enabled = document.querySelector('#enabled');
+    const choice = document.querySelector('#choice');
     const testButton = document.querySelector('#test-button');
+    const countOutput = document.querySelector('#count');
+    const result = document.querySelector('#result');
+    let count = 0;
+    let pressed = false;
+
+    function updateResult() {
+      result.textContent = [
+        `Text: ${message.value || 'empty'}`,
+        `Checkbox: ${enabled.checked ? 'on' : 'off'}`,
+        choice.value,
+        `Button: ${pressed ? 'pressed' : 'ready'}`,
+        `Count: ${count}`,
+      ].join(' · ');
+    }
+
+    message.addEventListener('input', updateResult);
+    enabled.addEventListener('change', updateResult);
+    choice.addEventListener('change', updateResult);
     testButton.addEventListener('click', () => {
-      const pressed = testButton.dataset.pressed !== 'true';
-      testButton.dataset.pressed = String(pressed);
+      pressed = !pressed;
       testButton.textContent = pressed ? 'Pressed' : 'Button';
+      updateResult();
     });
     document.querySelector('#increment').addEventListener('click', () => {
       count += 1;
-      document.querySelector('#count').textContent = String(count);
+      countOutput.textContent = String(count);
+      updateResult();
     });
   </script>
 </body>
