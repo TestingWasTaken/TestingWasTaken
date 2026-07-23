@@ -4,228 +4,174 @@
   const api = window.conduit;
   if (!api) return;
 
-  const original = {
-    navigate: api.navigate,
-    setPaneCount: api.setPaneCount,
-    setPolicy: api.setPolicy,
-    setFollowing: api.setFollowing,
-    pausePane: api.pausePane,
-    resetPane: api.resetPane,
-    setSettingsVisible: api.setSettingsVisible,
-    getWorkspace: api.getWorkspace,
-    onState: api.onState,
-    onHealth: api.onHealth,
-  };
-
-  let navigationPromise = null;
-  let lastHookState = '';
-  let finishPromise = null;
-
   const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+  const DEFAULT_POLICY = { navigation: false, scrolling: false, typing: false, clicks: false };
+  let applyPending = false;
+  let settingsStartCount = 4;
+  let paneTask = null;
 
-  function defaultPaneName(value, index) {
-    const text = String(value || '').trim();
-    if (index === 0 && (!text || text === 'Main' || text === 'Pane 1')) return 'Main screen';
-    if (index > 0 && (!text || text === `Pane ${index + 1}`)) {
-      return `Follower ${String.fromCharCode(64 + index)}`;
-    }
-    return text || (index === 0 ? 'Main screen' : `Follower ${String.fromCharCode(64 + index)}`);
+  function clampPaneCount(value) {
+    return Math.max(1, Math.min(8, Number(value) || 4));
   }
 
-  function routeWithFallback(item) {
-    if (!item || typeof item !== 'object') return item;
-    if (!item.ok) return item;
-    const location = String(item.location || '').trim();
-    if (!location || /^location unavailable$/i.test(location)) {
-      return { ...item, location: 'IP swapped · location unavailable' };
-    }
-    return item;
+  function defaultPaneName(index) {
+    return index === 0 ? 'Main screen' : `Follower ${String.fromCharCode(64 + index)}`;
   }
 
-  function mapState(state) {
-    if (!state || typeof state !== 'object') return state;
-    return {
-      ...state,
-      paneLabels: Array.isArray(state.paneLabels)
-        ? state.paneLabels.map(defaultPaneName)
-        : state.paneLabels,
-      ips: Array.isArray(state.ips) ? state.ips.map(routeWithFallback) : state.ips,
-    };
-  }
-
-  function connectionElements() {
-    return {
-      screen: document.querySelector('#connection-screen'),
-      title: document.querySelector('#connection-title'),
-      message: document.querySelector('#connection-message'),
-      fill: document.querySelector('#connection-progress-fill'),
-      label: document.querySelector('#connection-progress-label'),
-    };
-  }
-
-  async function finishSetup(message = 'Reconnecting panes…') {
-    if (finishPromise) return finishPromise;
-    finishPromise = (async () => {
-      const elements = connectionElements();
-      if (elements.screen) {
-        elements.title.textContent = 'Finishing setup';
-        elements.message.textContent = message;
-        elements.fill.style.width = '72%';
-        elements.label.textContent = '72%';
-        elements.screen.classList.remove('hidden');
+  function installStyles() {
+    const style = document.createElement('style');
+    style.id = 'conduit-v23-fixes';
+    style.textContent = `
+      #close-settings, #show-all-panes, .pane-number, .pane-index,
+      button[data-action="focus"] { display: none !important; }
+      .settings-header { justify-content: flex-start !important; }
+      .settings-sheet { width: min(980px, calc(100vw - 32px)) !important; height: min(860px, calc(100vh - 32px)) !important; }
+      .settings-sections { padding-bottom: 34px !important; }
+      #topology-list { display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; }
+      .pane-card, .pane-row, .pane-row-v22 {
+        display: grid !important;
+        grid-template-columns: minmax(230px, .9fr) minmax(190px, 1fr) auto !important;
+        align-items: center !important;
+        gap: 12px !important;
+        min-height: 64px !important;
+        padding: 10px 12px 10px 17px !important;
+        overflow: hidden !important;
       }
-
-      try {
-        await api.resyncAll();
-        await wait(480);
-        if (elements.fill) elements.fill.style.width = '100%';
-        if (elements.label) elements.label.textContent = '100%';
-        if (elements.message) elements.message.textContent = 'Panes connected';
-        await wait(180);
-      } finally {
-        elements.screen?.classList.add('hidden');
-        finishPromise = null;
+      .pane-card-head { display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important; align-items: center !important; gap: 8px !important; }
+      .pane-name-input { min-width: 0 !important; width: 100% !important; }
+      .pane-route { min-width: 0 !important; margin: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+      .pane-card-actions, .pane-actions { display: flex !important; justify-content: flex-end !important; gap: 6px !important; white-space: nowrap !important; }
+      .settings-footer { position: relative !important; z-index: 3 !important; }
+      @media (max-width: 820px) {
+        .pane-card, .pane-row, .pane-row-v22 { grid-template-columns: 1fr auto !important; }
+        .pane-route { grid-column: 1 / -1 !important; }
       }
-    })();
-    return finishPromise;
+    `;
+    document.head.appendChild(style);
   }
 
-  async function syncHooks(next) {
-    try {
-      return await api.syncV22State(next);
-    } catch {
-      return null;
-    }
-  }
+  function cleanPaneUI() {
+    document.querySelector('#close-settings')?.remove();
+    document.querySelector('#show-all-panes')?.remove();
+    const apply = document.querySelector('#apply-settings');
+    if (apply) apply.textContent = 'Apply and close';
 
-  api.getWorkspace = async () => mapState(await original.getWorkspace());
-  api.onState = (callback) => original.onState((state) => {
-    const mapped = mapState(state);
-    syncHooks({ visibleCount: Number(mapped?.screenCount || 4) });
-    callback(mapped);
-  });
-  api.onHealth = (callback) => original.onHealth((health) => {
-    const signature = JSON.stringify({
-      visibleCount: health?.visiblePaneCount,
-      following: health?.followingEnabled,
-      policy: health?.policy,
-    });
-    if (signature !== lastHookState) {
-      lastHookState = signature;
-      syncHooks({
-        visibleCount: Number(health?.visiblePaneCount || 4),
-        following: Boolean(health?.followingEnabled),
-        policy: health?.policy || {},
-      });
-    }
-    callback(health);
-  });
-
-  api.setPaneCount = async (value) => {
-    const result = await original.setPaneCount(value);
-    await syncHooks({ visibleCount: Number(value) || 4 });
-    return result;
-  };
-
-  api.setPolicy = async (nextPolicy) => {
-    const result = await original.setPolicy(nextPolicy);
-    await syncHooks({ policy: nextPolicy || {} });
-    return result;
-  };
-
-  api.setFollowing = async (enabled) => {
-    const result = await original.setFollowing(enabled);
-    await syncHooks({ following: Boolean(enabled) });
-    return result;
-  };
-
-  api.pausePane = async (pane, shouldPause) => {
-    const result = await original.pausePane(pane, shouldPause);
-    if (result?.ok !== false) {
-      await syncHooks({ pause: { pane: Number(pane), paused: Boolean(shouldPause) } });
-    }
-    return result;
-  };
-
-  api.navigate = async (value) => {
-    const destination = String(value || '').trim() || 'relay://home';
-    if (navigationPromise) return navigationPromise;
-
-    navigationPromise = (async () => {
-      const go = document.querySelector('#go');
-      const previous = go?.textContent || 'Go';
-      if (go) {
-        go.disabled = true;
-        go.textContent = 'Opening…';
-      }
-
-      try {
-        let result = await original.navigate(destination);
-        if (result?.ok === false) {
-          await wait(220);
-          result = await original.navigate(destination);
-        }
-        if (result?.ok === false && go) {
-          go.title = result.error || 'The address could not be opened.';
-          go.textContent = 'Try again';
-          await wait(700);
-        }
-        return result;
-      } catch (error) {
-        if (go) {
-          go.title = error?.message || String(error);
-          go.textContent = 'Try again';
-          await wait(700);
-        }
-        return { ok: false, error: error?.message || String(error) };
-      } finally {
-        if (go) {
-          go.disabled = false;
-          go.textContent = previous;
-        }
-        navigationPromise = null;
-      }
-    })();
-
-    return navigationPromise;
-  };
-
-  api.resetPane = async (pane) => {
-    await api.forgetPaneV22(Number(pane));
-    const result = await original.resetPane(pane);
-    if (result?.ok !== false) await finishSetup('Reconnecting the reset pane…');
-    return result;
-  };
-
-  api.setSettingsVisible = async (visible) => {
-    const result = await original.setSettingsVisible(visible);
-    if (visible === false && result?.ok !== false) {
-      setTimeout(() => finishSetup('Applying the follower setup again…'), 0);
-    }
-    return result;
-  };
-
-  function cleanPaneControls() {
     const list = document.querySelector('#topology-list');
     if (!list) return;
-    list.querySelectorAll('.pane-number').forEach((element) => element.remove());
-    list.querySelectorAll('button[data-action="focus"]').forEach((element) => element.remove());
-    list.querySelectorAll('.pane-card').forEach((element) => element.classList.add('pane-row-v22'));
-    document.querySelector('#show-all-panes')?.remove();
+    list.querySelectorAll('.pane-number, .pane-index, button[data-action="focus"]').forEach((element) => element.remove());
+    list.querySelectorAll('.pane-card, .pane-row').forEach((element) => element.classList.add('pane-row-v22'));
   }
 
-  window.addEventListener('DOMContentLoaded', () => {
-    const form = document.querySelector('#address-form');
-    const go = document.querySelector('#go');
-    go?.addEventListener('click', (event) => {
-      event.preventDefault();
-      form?.requestSubmit();
+  async function resyncBurst() {
+    for (const delay of [0, 220, 700]) {
+      if (delay) await wait(delay);
+      try { await api.resyncAll(); } catch {}
+    }
+  }
+
+  async function ensurePaneCount(value, shouldResync = true) {
+    const count = clampPaneCount(value);
+    if (paneTask) await paneTask;
+    paneTask = (async () => {
+      let result = await api.setPaneCount(count);
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await wait(180 + (attempt * 180));
+        const state = await api.getWorkspace().catch(() => null);
+        if (Number(state?.screenCount) === count) break;
+        result = await api.setPaneCount(count);
+      }
+      try { await api.syncV22State({ visibleCount: count }); } catch {}
+      if (shouldResync) await resyncBurst();
+      return result;
+    })();
+    try {
+      return await paneTask;
+    } finally {
+      paneTask = null;
+    }
+  }
+
+  async function freshStart() {
+    try { await api.setSettingsVisible(false); } catch {}
+    await ensurePaneCount(4, false);
+    await api.setZoom(0.8).catch(() => {});
+    await api.setAudioMode('leader').catch(() => {});
+    await api.setPolicy(DEFAULT_POLICY).catch(() => {});
+    await api.setFollowing(false).catch(() => {});
+    await api.focusPane(0).catch(() => {});
+    for (let index = 0; index < 8; index += 1) {
+      await api.setPaneLabel(index + 1, defaultPaneName(index)).catch(() => {});
+    }
+    let navigation = await api.navigate('relay://welcome').catch(() => ({ ok: false }));
+    if (navigation?.ok === false) {
+      await wait(260);
+      try { await api.setSettingsVisible(false); } catch {}
+      navigation = await api.navigate('relay://welcome').catch(() => ({ ok: false }));
+    }
+    try {
+      await api.syncV22State({ visibleCount: 4, following: false, policy: DEFAULT_POLICY });
+    } catch {}
+    await resyncBurst();
+
+    const quick = document.querySelector('#quick-pane-count');
+    const setting = document.querySelector('#setting-pane-count');
+    const zoom = document.querySelector('#setting-zoom');
+    if (quick) quick.value = '4';
+    if (setting) setting.value = '4';
+    if (zoom) zoom.value = '0.8';
+  }
+
+  function installInteractions() {
+    const quickCount = document.querySelector('#quick-pane-count');
+    const settingCount = document.querySelector('#setting-pane-count');
+    const apply = document.querySelector('#apply-settings');
+    const cancel = document.querySelector('#cancel-settings');
+    const backdrop = document.querySelector('#settings-backdrop');
+
+    quickCount?.addEventListener('change', () => ensurePaneCount(quickCount.value), false);
+
+    settingCount?.addEventListener('change', async () => {
+      await ensurePaneCount(settingCount.value, false);
+      cleanPaneUI();
+    }, false);
+
+    apply?.addEventListener('click', () => {
+      applyPending = true;
+      const desired = clampPaneCount(settingCount?.value);
+      setTimeout(() => ensurePaneCount(desired, false), 120);
     }, true);
 
-    cleanPaneControls();
-    const list = document.querySelector('#topology-list');
-    if (list) {
-      new MutationObserver(cleanPaneControls).observe(list, { childList: true, subtree: true });
+    cancel?.addEventListener('click', () => {
+      applyPending = false;
+      setTimeout(() => ensurePaneCount(settingsStartCount), 80);
+    }, true);
+
+    if (backdrop) {
+      let wasVisible = !backdrop.classList.contains('hidden');
+      new MutationObserver(async () => {
+        const visible = !backdrop.classList.contains('hidden');
+        if (visible && !wasVisible) {
+          const state = await api.getWorkspace().catch(() => null);
+          settingsStartCount = clampPaneCount(state?.screenCount);
+        }
+        if (!visible && wasVisible && applyPending) {
+          applyPending = false;
+          const desired = clampPaneCount(settingCount?.value);
+          await ensurePaneCount(desired, true);
+        }
+        wasVisible = visible;
+      }).observe(backdrop, { attributes: true, attributeFilter: ['class'] });
     }
+
+    const list = document.querySelector('#topology-list');
+    if (list) new MutationObserver(cleanPaneUI).observe(list, { childList: true, subtree: true });
+  }
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    installStyles();
+    cleanPaneUI();
+    installInteractions();
+    await freshStart();
+    cleanPaneUI();
   }, { once: true });
 })();
