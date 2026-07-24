@@ -64,8 +64,8 @@ test('URL watchdog compares followers continuously and retries drift', () => {
   const watchdog = read('src/main-v27-watchdog.js');
   assert.match(watchdog, /setInterval\(checkFollowers, 450\)/);
   assert.match(watchdog, /contents\.getURL\(\)/);
-  assert.match(watchdog, /actualURL === targetURL/);
-  assert.match(watchdog, /contents\.loadURL\(targetURL\)/);
+  assert.match(watchdog, /actualURL !== targetURL/);
+  assert.match(watchdog, /contents\.loadURL\(item\.targetURL\)/);
   assert.match(watchdog, /sync\.fullResync\(\)/);
   assert.match(watchdog, /v27-recovery/);
 });
